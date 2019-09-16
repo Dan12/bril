@@ -1,0 +1,9 @@
+{
+  "name": "bril-ssa",
+  "version": "1.0.0",
+  "main": "test.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^12.7.4"
+  }
+}
