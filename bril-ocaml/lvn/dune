@@ -1,0 +1,6 @@
+(library
+(name lvn_lib)
+(libraries
+ bril_lib
+ core)
+(preprocess (pps ppx_jane)))

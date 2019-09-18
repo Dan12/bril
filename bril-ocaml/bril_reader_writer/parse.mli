@@ -1,4 +1,5 @@
 open! Core
+open! Yojson.Basic
 
 type value = Int of int | Bool of bool [@@deriving sexp]
 
@@ -15,4 +16,5 @@ type funct = {name: string; instrs: instr list} [@@deriving sexp]
 
 type program = {functions: funct list} [@@deriving sexp]
 
-val parse_program : Yojson.Basic.json -> program Or_error.t
+val parse_program : json -> program Or_error.t
+(* val gen_program : program -> json *)

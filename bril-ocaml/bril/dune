@@ -1,0 +1,4 @@
+(library
+(name bril_lib)
+(libraries core)
+(preprocess (pps ppx_jane)))

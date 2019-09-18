@@ -1,6 +1,7 @@
-(executable
-(name main)
+(library
+(name bril_reader_writer_lib)
 (libraries 
+ bril_lib
  yojson
  core)
 (preprocess (pps ppx_jane)))

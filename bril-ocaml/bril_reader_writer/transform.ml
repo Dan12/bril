@@ -1,5 +1,5 @@
 open! Core
-open! Bril
+open! Bril_lib.Bril
 
 let transform_typ (typ : string) : typ Or_error.t =
   match typ with

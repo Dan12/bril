@@ -1,0 +1,4 @@
+(library
+(name llvm_lib)
+(libraries bril_lib basic_block_lib core)
+(preprocess (pps ppx_jane)))
