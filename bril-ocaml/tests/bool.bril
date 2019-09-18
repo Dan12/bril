@@ -1,0 +1,6 @@
+main {
+  v: bool = const true;
+  w: bool = const false;
+  x: bool = and v w;
+  print x;
+}

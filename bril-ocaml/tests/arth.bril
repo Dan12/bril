@@ -1,0 +1,12 @@
+main {
+  v: int = const 15;
+  w: int = const 27;
+  x: int = mul v w;
+  print x;
+  x: int = sub x v;
+  print x;
+  v: int = const 10;
+  w: int = const 2;
+  y: int = div v w;
+  print y;
+}

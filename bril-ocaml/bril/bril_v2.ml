@@ -34,6 +34,26 @@ type _ effect_opcode =
 
 type 'a effect_op = {op: 'a effect_opcode; args: 'a effect_op_data}
 
+type _ bin_op_v2_ex =
+  | Int_op : [< `Add | `Mul | `Sub | `Div] bin_op_v2_ex
+  | Bool_op : [< `Eq | `Lt | `Gt | `Le | `Ge | `And | `Or] bin_op_v2_ex
+
+type _ binop_opcode =
+  | Add : [`Add] binop_opcode
+  | Mul : [`Mul] binop_opcode
+  | Sub : [`Sub] binop_opcode
+  | Div : [`Div] binop_opcode
+  | Eq : [`Eq] binop_opcode
+  | Lt : [`Lt] binop_opcode
+  | Gt : [`Gt] binop_opcode
+  | Le : [`Le] binop_opcode
+  | Ge : [`Ge] binop_opcode
+  | And : [`And] binop_opcode
+  | Or : [`Or] binop_opcode
+
+type 'a bin_op_v2 =
+  {op: 'a binop_opcode; arg_l: ident; arg_r: ident; ex: 'a bin_op_v2_ex}
+
 type _ value_op_data =
   | Bin_op :
       bin_op_data

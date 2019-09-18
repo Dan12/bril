@@ -27,44 +27,43 @@ let create_fresh_var_gen current_vars =
   in
   gen_fresh_var
 
-let gen_load_from_stack gen_fresh (var_map : int String.Map.t) var =
+let gen_load_from_stack ~gen_fresh ~var_map to_load =
   let ptr_var = gen_fresh () in
   let result_var = gen_fresh () in
-  match Map.find var_map var with
+  match Map.find var_map to_load with
   | None -> ("", result_var)
-  | Some idx ->
+  | Some load_idx ->
       ( sprintf
           {|
   %%%s = getelementptr inbounds i64, i64* %%stack, i64 %d
   %%%s = load i64, i64* %%%s
 |}
-          ptr_var idx result_var ptr_var
+          ptr_var load_idx result_var ptr_var
       , result_var )
 
-let gen_store_const_to_stack gen_fresh (var_map : int String.Map.t) var const =
+let gen_store_const_to_stack ~gen_fresh ~var_map ~dest const =
   let ptr_var = gen_fresh () in
-  match Map.find var_map var with
+  match Map.find var_map dest with
   | None -> ""
-  | Some idx ->
+  | Some dest_idx ->
       sprintf
         {|
  %%%s = getelementptr inbounds i64, i64* %%stack, i64 %d
  store i64 %d, i64* %%%s
 |}
-        ptr_var idx const ptr_var
+        ptr_var dest_idx const ptr_var
 
-let gen_store_var_to_stack gen_fresh (var_map : int String.Map.t) var store_var
-    =
+let gen_store_var_to_stack ~gen_fresh ~var_map ~dest to_store =
   let ptr_var = gen_fresh () in
-  match Map.find var_map var with
+  match Map.find var_map dest with
   | None -> ""
-  | Some idx ->
+  | Some dest_idx ->
       sprintf
         {|
  %%%s = getelementptr inbounds i64, i64* %%stack, i64 %d
  store i64 %%%s, i64* %%%s
 |}
-        ptr_var idx store_var ptr_var
+        ptr_var dest_idx to_store ptr_var
 
 let gen_value (value : value) =
   match value with Int i -> i | Bool b -> if b then 1 else 0
@@ -72,35 +71,147 @@ let gen_value (value : value) =
 let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
   let (Any op) = op in
   match op with
-  | {op= Jmp; ex= Effect_op {args= Jmp label; _}} ->
-      sprintf "br label %%%s" label
-  | {op= Ret; _} -> sprintf "ret i64 0"
-  | {op= Print; ex= Effect_op {args= Print args; _}} ->
-      let arg_prints =
-        List.map args ~f:(fun arg ->
-            let load_str, result_var =
-              gen_load_from_stack gen_fresh var_map arg
-            in
-            sprintf {|
-%s
-call void @printi(i64 %%%s)
-|} load_str result_var )
-      in
-      sprintf "%s" (String.concat arg_prints ~sep:"\n")
-  | {op= Br; ex= Effect_op {args= Br {var; true_l; false_l}; _}} ->
-      let load_str, result_var = gen_load_from_stack gen_fresh var_map var in
-      let cmp_var = gen_fresh () in
-      sprintf
-        {|
-%s
-%%%s = icmp ne i64 %%%s, 0
-br i1 %%%s, label %%%s, label %%%s
+  | {ex= Effect_op {args; _}; _} -> (
+    match args with
+    | Jmp label -> sprintf "br label %%%s" label
+    | Ret -> sprintf "ret i64 0"
+    | Print args ->
+        let arg_prints =
+          List.map args ~f:(fun arg ->
+              let load_str, result_var =
+                gen_load_from_stack ~gen_fresh ~var_map arg
+              in
+              sprintf {|
+  %s
+  call void @printi(i64 %%%s)
+|} load_str
+                result_var )
+        in
+        sprintf "%s" (String.concat arg_prints ~sep:"\n")
+    | Br {var; true_l; false_l} ->
+        let load_str, result_var =
+          gen_load_from_stack ~gen_fresh ~var_map var
+        in
+        let cmp_var = gen_fresh () in
+        sprintf
+          {|
+  %s
+  %%%s = icmp ne i64 %%%s, 0
+  br i1 %%%s, label %%%s, label %%%s
 |}
-        load_str cmp_var result_var cmp_var true_l false_l
+          load_str cmp_var result_var cmp_var true_l false_l )
   | {op= Const; ex= Mutation_op {dest; ex= Const_op value; _}} ->
       let value = gen_value value in
-      gen_store_const_to_stack gen_fresh var_map dest value
-  | _ -> failwith "unimp"
+      gen_store_const_to_stack ~gen_fresh ~var_map ~dest value
+  | {ex= Mutation_op {dest; ex= Value_op {args= Un_op arg; _}; op= Not; _}; _}
+    ->
+      let load_str, load_result =
+        gen_load_from_stack ~gen_fresh ~var_map arg
+      in
+      let result_var = gen_fresh () in
+      let store_str =
+        gen_store_var_to_stack ~gen_fresh ~var_map ~dest result_var
+      in
+      sprintf {|
+  %s
+  %%%s = sub i64 1, %%%s
+  %s
+|} load_str result_var
+        load_result store_str
+  | { ex=
+        Mutation_op
+          {dest; ex= Value_op {args= Bin_op {arg_l; arg_r}; op= binop}; _}; _
+    } ->
+      let load_left_str, left_result =
+        gen_load_from_stack ~gen_fresh ~var_map arg_l
+      in
+      let load_right_str, right_result =
+        gen_load_from_stack ~gen_fresh ~var_map arg_r
+      in
+      let result_var = gen_fresh () in
+      let store_str =
+        gen_store_var_to_stack ~gen_fresh ~var_map ~dest result_var
+      in
+      let binop_str =
+        match binop with
+        | Add ->
+            sprintf "%%%s = add i64 %%%s, %%%s" result_var left_result
+              right_result
+        | Sub ->
+            sprintf "%%%s = sub i64 %%%s, %%%s" result_var left_result
+              right_result
+        | Mul ->
+            sprintf "%%%s = mul i64 %%%s, %%%s" result_var left_result
+              right_result
+        | Div ->
+            sprintf "%%%s = sdiv i64 %%%s, %%%s" result_var left_result
+              right_result
+        | And ->
+            sprintf "%%%s = and i64 %%%s, %%%s" result_var left_result
+              right_result
+        | Or ->
+            sprintf "%%%s = or i64 %%%s, %%%s" result_var left_result
+              right_result
+        | Eq ->
+            let cmp_result = gen_fresh () in
+            sprintf
+              {|
+%%%s = icmp eq i64 %%%s, %%%s
+%%%s = zext i1 %%%s to i64
+|}
+              cmp_result left_result right_result result_var cmp_result
+        | Lt ->
+            let cmp_result = gen_fresh () in
+            sprintf
+              {|
+%%%s = icmp slt i64 %%%s, %%%s
+%%%s = zext i1 %%%s to i64
+|}
+              cmp_result left_result right_result result_var cmp_result
+        | Gt ->
+            let cmp_result = gen_fresh () in
+            sprintf
+              {|
+%%%s = icmp sgt i64 %%%s, %%%s
+%%%s = zext i1 %%%s to i64
+|}
+              cmp_result left_result right_result result_var cmp_result
+        | Le ->
+            let cmp_result = gen_fresh () in
+            sprintf
+              {|
+%%%s = icmp sle i64 %%%s, %%%s
+%%%s = zext i1 %%%s to i64
+|}
+              cmp_result left_result right_result result_var cmp_result
+        | Ge ->
+            let cmp_result = gen_fresh () in
+            sprintf
+              {|
+%%%s = icmp sge i64 %%%s, %%%s
+%%%s = zext i1 %%%s to i64
+|}
+              cmp_result left_result right_result result_var cmp_result
+      in
+      sprintf {|
+  %s
+  %s
+  %s
+  %s
+|} load_left_str load_right_str binop_str
+        store_str
+  | {ex= Nop_op; _} -> ""
+  | {ex= Id_op {dest; arg}; _} ->
+      let load_str, load_result =
+        gen_load_from_stack ~gen_fresh ~var_map arg
+      in
+      let store_str =
+        gen_store_var_to_stack ~gen_fresh ~var_map ~dest load_result
+      in
+      sprintf {|
+%s
+%s
+|} load_str store_str
 
 let gen_block_str gen_fresh (var_map : int String.Map.t)
     (block : labeled_block) =
@@ -108,7 +219,7 @@ let gen_block_str gen_fresh (var_map : int String.Map.t)
   let instrs_str = String.concat instrs ~sep:"\n" in
   sprintf {|
 %s:
-%s
+  %s
 |} block.label instrs_str
 
 let gen_function (funct : funct) =
@@ -133,8 +244,6 @@ define i64 @%s() {
       (* Functions currently take no arguments*)
       sprintf
         {|
-declare void @printi(i64)
-
 define i64 @%s() {
   %%stack = alloca i64, i64 %d
   br label %%%s

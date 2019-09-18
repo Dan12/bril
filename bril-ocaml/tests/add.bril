@@ -1,0 +1,6 @@
+main {
+  v: int = const 4;
+  w: int = const 5;
+  v: int = add v w;
+  print v;
+}

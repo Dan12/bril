@@ -15,5 +15,3 @@ module Writer = struct
     let out_channel = Out_channel.create filename in
     pretty_to_channel out_channel json
 end
-
-module Transform_v2 = Transform_v2

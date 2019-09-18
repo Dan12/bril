@@ -78,7 +78,7 @@ let transform_operation (instr : Parse.instr) : operation Or_error.t =
     | "and" -> Or_error.map (transform_binop instr) ~f:(fun data -> And data)
     | "or" -> Or_error.map (transform_binop instr) ~f:(fun data -> Or data)
     | "not" -> Or_error.map (transform_unop instr) ~f:(fun data -> Not data)
-    | _ -> Or_error.error_s [%message "Unimplemented op code"] )
+    | s -> Or_error.error_s [%message "Unimplemented op code" (s : string)] )
   | None -> Or_error.error_s [%message "Instruction had no op code"]
 
 let transform_instr (instr : Parse.instr) : function_instruction Or_error.t =

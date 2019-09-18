@@ -1,5 +1,4 @@
 open! Core
-open! Bril_lib
 open! Bril_v2
 
 let transform_v2 (op : Bril.operation) : any_op =
