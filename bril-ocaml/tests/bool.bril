@@ -3,4 +3,8 @@ main {
   w: bool = const false;
   x: bool = and v w;
   print x;
+  x: bool = or v w;
+  print x;
+  x: bool = not w;
+  print x;
 }

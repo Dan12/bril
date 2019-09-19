@@ -120,7 +120,7 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
         load_result store_str
   | { ex=
         Mutation_op
-          {dest; ex= Value_op {args= Bin_op {arg_l; arg_r}; op= binop}; _}; _
+          {dest; ex= Value_op {args= Bin_op {arg_l; arg_r; op; ex}; _}; _}; _
     } ->
       let load_left_str, left_result =
         gen_load_from_stack ~gen_fresh ~var_map arg_l
@@ -133,65 +133,37 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
         gen_store_var_to_stack ~gen_fresh ~var_map ~dest result_var
       in
       let binop_str =
-        match binop with
-        | Add ->
-            sprintf "%%%s = add i64 %%%s, %%%s" result_var left_result
+        match ex with
+        | Int_op ->
+            let op_str =
+              match op with
+              | Add -> "add"
+              | Sub -> "sub"
+              | Mul -> "mul"
+              | Div -> "sdiv"
+            in
+            sprintf "%%%s = %s i64 %%%s, %%%s" result_var op_str left_result
               right_result
-        | Sub ->
-            sprintf "%%%s = sub i64 %%%s, %%%s" result_var left_result
+        | Bool_op ->
+            let op_str = match op with And -> "and" | Or -> "or" in
+            sprintf "%%%s = %s i64 %%%s, %%%s" result_var op_str left_result
               right_result
-        | Mul ->
-            sprintf "%%%s = mul i64 %%%s, %%%s" result_var left_result
-              right_result
-        | Div ->
-            sprintf "%%%s = sdiv i64 %%%s, %%%s" result_var left_result
-              right_result
-        | And ->
-            sprintf "%%%s = and i64 %%%s, %%%s" result_var left_result
-              right_result
-        | Or ->
-            sprintf "%%%s = or i64 %%%s, %%%s" result_var left_result
-              right_result
-        | Eq ->
+        | Int_to_bool_op ->
+            let op_str =
+              match op with
+              | Eq -> "eq"
+              | Lt -> "lt"
+              | Gt -> "gt"
+              | Le -> "le"
+              | Ge -> "ge"
+            in
             let cmp_result = gen_fresh () in
             sprintf
               {|
-%%%s = icmp eq i64 %%%s, %%%s
-%%%s = zext i1 %%%s to i64
+  %%%s = icmp s%s i64 %%%s, %%%s
+  %%%s = zext i1 %%%s to i64
 |}
-              cmp_result left_result right_result result_var cmp_result
-        | Lt ->
-            let cmp_result = gen_fresh () in
-            sprintf
-              {|
-%%%s = icmp slt i64 %%%s, %%%s
-%%%s = zext i1 %%%s to i64
-|}
-              cmp_result left_result right_result result_var cmp_result
-        | Gt ->
-            let cmp_result = gen_fresh () in
-            sprintf
-              {|
-%%%s = icmp sgt i64 %%%s, %%%s
-%%%s = zext i1 %%%s to i64
-|}
-              cmp_result left_result right_result result_var cmp_result
-        | Le ->
-            let cmp_result = gen_fresh () in
-            sprintf
-              {|
-%%%s = icmp sle i64 %%%s, %%%s
-%%%s = zext i1 %%%s to i64
-|}
-              cmp_result left_result right_result result_var cmp_result
-        | Ge ->
-            let cmp_result = gen_fresh () in
-            sprintf
-              {|
-%%%s = icmp sge i64 %%%s, %%%s
-%%%s = zext i1 %%%s to i64
-|}
-              cmp_result left_result right_result result_var cmp_result
+              cmp_result op_str left_result right_result result_var cmp_result
       in
       sprintf {|
   %s

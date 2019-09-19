@@ -19,7 +19,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Add
               ; dest
               ; typ
-              ; ex= Value_op {op= Add; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= Add; args= Bin_op {op= Add; arg_l; arg_r; ex= Int_op}}
+              } }
   | Mul {dest; arg_l; arg_r; typ} ->
       Any
         { op= Mul
@@ -28,7 +31,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Mul
               ; dest
               ; typ
-              ; ex= Value_op {op= Mul; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= Mul; args= Bin_op {op= Mul; arg_l; arg_r; ex= Int_op}}
+              } }
   | Sub {dest; arg_l; arg_r; typ} ->
       Any
         { op= Sub
@@ -37,7 +43,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Sub
               ; dest
               ; typ
-              ; ex= Value_op {op= Sub; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= Sub; args= Bin_op {op= Sub; arg_l; arg_r; ex= Int_op}}
+              } }
   | Div {dest; arg_l; arg_r; typ} ->
       Any
         { op= Div
@@ -46,7 +55,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Div
               ; dest
               ; typ
-              ; ex= Value_op {op= Div; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= Div; args= Bin_op {op= Div; arg_l; arg_r; ex= Int_op}}
+              } }
   | Eq {dest; arg_l; arg_r; typ} ->
       Any
         { op= Eq
@@ -55,7 +67,11 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Eq
               ; dest
               ; typ
-              ; ex= Value_op {op= Eq; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    { op= Eq
+                    ; args= Bin_op {op= Eq; arg_l; arg_r; ex= Int_to_bool_op}
+                    } } }
   | Lt {dest; arg_l; arg_r; typ} ->
       Any
         { op= Lt
@@ -64,7 +80,11 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Lt
               ; dest
               ; typ
-              ; ex= Value_op {op= Lt; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    { op= Lt
+                    ; args= Bin_op {op= Lt; arg_l; arg_r; ex= Int_to_bool_op}
+                    } } }
   | Gt {dest; arg_l; arg_r; typ} ->
       Any
         { op= Gt
@@ -73,7 +93,11 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Gt
               ; dest
               ; typ
-              ; ex= Value_op {op= Gt; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    { op= Gt
+                    ; args= Bin_op {op= Gt; arg_l; arg_r; ex= Int_to_bool_op}
+                    } } }
   | Le {dest; arg_l; arg_r; typ} ->
       Any
         { op= Le
@@ -82,7 +106,11 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Le
               ; dest
               ; typ
-              ; ex= Value_op {op= Le; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    { op= Le
+                    ; args= Bin_op {op= Le; arg_l; arg_r; ex= Int_to_bool_op}
+                    } } }
   | Ge {dest; arg_l; arg_r; typ} ->
       Any
         { op= Ge
@@ -91,7 +119,11 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Ge
               ; dest
               ; typ
-              ; ex= Value_op {op= Ge; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    { op= Ge
+                    ; args= Bin_op {op= Ge; arg_l; arg_r; ex= Int_to_bool_op}
+                    } } }
   | And {dest; arg_l; arg_r; typ} ->
       Any
         { op= And
@@ -100,7 +132,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= And
               ; dest
               ; typ
-              ; ex= Value_op {op= And; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= And; args= Bin_op {op= And; arg_l; arg_r; ex= Bool_op}}
+              } }
   | Or {dest; arg_l; arg_r; typ} ->
       Any
         { op= Or
@@ -109,7 +144,10 @@ let transform_v2 (op : Bril.operation) : any_op =
               { op= Or
               ; dest
               ; typ
-              ; ex= Value_op {op= Or; args= Bin_op {arg_l; arg_r}} } }
+              ; ex=
+                  Value_op
+                    {op= Or; args= Bin_op {op= Or; arg_l; arg_r; ex= Bool_op}}
+              } }
   | Not {dest; arg; typ} ->
       Any
         { op= Not
