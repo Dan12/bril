@@ -1,0 +1,30 @@
+main {
+  v: int = const 4;
+  w: int = const 5;
+  x: bool = gt v w;
+  print x;
+  v: int = const -4;
+  w: int = const 5;
+  x: bool = gt v w;
+  print x;
+  v: int = const -4;
+  w: int = const 4;
+  x: bool = gt v w;
+  print x;
+  v: int = const -4;
+  w: int = const -4;
+  x: bool = gt v w;
+  print x;
+  v: int = const 6;
+  w: int = const -4;
+  x: bool = gt v w;
+  print x;
+  v: int = const 7;
+  w: int = const 6;
+  x: bool = gt v w;
+  print x;
+  v: int = const 222224141515;
+  w: int = const -222224141515;
+  x: bool = gt v w;
+  print x;
+}

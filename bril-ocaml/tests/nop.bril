@@ -1,16 +1,29 @@
 main {
   v: int = const 15;
   w: int = const 27;
+  nop;
   x: int = mul v w;
+  nop;
   print x;
   x: int = sub x v;
   print x;
+  nop;
   v: int = const 10;
   w: int = const 2;
+  nop;
   y: int = div v w;
   print y;
   v: int = const 31;
   w: int = const 17;
+  jmp here;
+  nop;
   y: int = div v w;
+  print y;
+here:
+  nop;
+  jmp there;
+  y: int = mul v w;
+there:
+  nop;
   print y;
 }

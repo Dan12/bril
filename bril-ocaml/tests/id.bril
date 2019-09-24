@@ -1,0 +1,11 @@
+main {
+  v: int = const 7;
+  w: int = id v;
+  print w;
+  print v;
+  v: int = const 11;
+  w: int = id v;
+  v: int = const 13;
+  print v;
+  print w;
+}

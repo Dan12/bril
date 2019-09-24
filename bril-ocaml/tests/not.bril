@@ -1,0 +1,8 @@
+main {
+  w: bool = const false;
+  x: bool = not w;
+  print x;
+  w: bool = const true;
+  x: bool = not w;
+  print x;
+}

@@ -35,6 +35,9 @@ end
 module Variable = struct
   type 'a t = {name: string; typ: 'a Data_type.t}
 
+  (* Use a record to mainain function polymorphism within functions *)
+  type gen_fresh = {f: 'a. 'a Data_type.t -> 'a t}
+
   let create_fresh_var_gen current_vars =
     let i = ref 0 in
     let rec gen_fresh_var typ =
@@ -44,30 +47,7 @@ module Variable = struct
       if List.mem current_vars var ~equal:String.equal then gen_fresh_var typ
       else {name= var; typ}
     in
-    gen_fresh_var
-end
-
-(* module Spec_var : sig
- *   val spec : 'a Data_type.t -> 'b Variable.t -> 'a Variable.t
- * end = struct
- *   let spec (_ : 'a Data_type.t) (var : 'b Variable.t) =
- *     let open Variable in
- *     {name= var.name; typ= var.typ}
- * end *)
-
-module Gen_Fresh (Vars : sig
-  val vars : string list
-end) =
-struct
-  let i = ref 0
-
-  let rec gen_fresh typ =
-    let open Variable in
-    let cur_i = !i in
-    incr i ;
-    let var = "_v" ^ Int.to_string cur_i in
-    if List.mem Vars.vars var ~equal:String.equal then gen_fresh typ
-    else {name= var; typ}
+    {f= gen_fresh_var}
 end
 
 module Stack = struct
@@ -95,7 +75,7 @@ module Block = struct
 
   let append_gen_ptr t ~gen_fresh ~base ~offset =
     let open Variable in
-    let result_var = gen_fresh (Data_type.Ptr Data_type.Int) in
+    let result_var = gen_fresh.f (Data_type.Ptr Data_type.Int) in
     let instr =
       sprintf "%%%s = getelementptr inbounds i64, i64* %%%s, i64 %d"
         result_var.name base.name offset
@@ -105,17 +85,20 @@ module Block = struct
 
   let append_gen_struct_ptr t ~gen_fresh ~base ~offset =
     let open Variable in
-    let result_var = gen_fresh (Data_type.Ptr Data_type.Int) in
+    let result_var = gen_fresh.f (Data_type.Ptr Data_type.Int) in
     let instr =
-      sprintf "%%%s = getelementptr inbounds i64, i64* %%%s, i64 0, i64 %d"
-        result_var.name base.name offset
+      sprintf "%%%s = getelementptr inbounds %s, %s* %%%s, i32 0, i32 %d"
+        result_var.name
+        (Data_type.to_string base.typ)
+        (Data_type.to_string base.typ)
+        base.name offset
     in
     t.instructions <- instr :: t.instructions ;
     result_var
 
   let append_load t ~gen_fresh ~ptr =
     let open Variable in
-    let result_var = gen_fresh Data_type.Int in
+    let result_var = gen_fresh.f Data_type.Int in
     let instr =
       sprintf "%%%s = load i64, i64* %%%s" result_var.name ptr.name
     in
@@ -124,12 +107,17 @@ module Block = struct
 
   let append_store t ~ptr ~arg =
     let open Variable in
-    let instr = sprintf "store i64 %%%s, i64* %%%s" ptr.name arg.name in
+    let instr = sprintf "store i64 %%%s, i64* %%%s" arg.name ptr.name in
+    t.instructions <- instr :: t.instructions
+
+  let append_store_const t ~ptr ~const =
+    let open Variable in
+    let instr = sprintf "store i64 %d, i64* %%%s" const ptr.name in
     t.instructions <- instr :: t.instructions
 
   let append_const t ~gen_fresh ~value =
     let open Variable in
-    let result_var = gen_fresh Data_type.Int in
+    let result_var = gen_fresh.f Data_type.Int in
     let instr = sprintf "%%%s = i64 %d" result_var.name value in
     t.instructions <- instr :: t.instructions ;
     result_var
@@ -161,7 +149,7 @@ module Block = struct
 
   let append_ne t ~gen_fresh ~arg1 ~arg2 =
     let open Variable in
-    let result_var = gen_fresh Data_type.Bool in
+    let result_var = gen_fresh.f Data_type.Bool in
     let instr =
       sprintf "%%%s = icmp ne i64 %%%s, %%%s" result_var.name arg1.name
         arg2.name
@@ -171,7 +159,7 @@ module Block = struct
 
   let append_add t ~gen_fresh ~arg1 ~arg2 =
     let open Variable in
-    let result_var = gen_fresh Data_type.Int in
+    let result_var = gen_fresh.f Data_type.Int in
     let instr =
       sprintf "%%%s = add i64 %%%s, %%%s" result_var.name arg1.name arg2.name
     in

@@ -25,13 +25,9 @@ end
 module Variable : sig
   type 'a t
 
-  val create_fresh_var_gen : string list -> 'a Data_type.t -> 'a t
-end
+  type gen_fresh = {f: 'a. 'a Data_type.t -> 'a t}
 
-module Gen_Fresh (Vars : sig
-  val vars : string list
-end) : sig
-  val gen_fresh : 'a Data_type.t -> 'a Variable.t
+  val create_fresh_var_gen : string list -> gen_fresh
 end
 
 module Stack : sig
@@ -49,23 +45,21 @@ module Block : sig
 
   val append_gen_ptr :
        t
-    -> gen_fresh:(   Data_type.i64 Data_type.ptr Data_type.t
-                  -> Data_type.i64 Data_type.ptr Variable.t)
+    -> gen_fresh:Variable.gen_fresh
     -> base:Data_type.i64 Data_type.ptr Variable.t
     -> offset:int
     -> Data_type.i64 Data_type.ptr Variable.t
 
   val append_gen_struct_ptr :
        t
-    -> gen_fresh:(   Data_type.i64 Data_type.ptr Data_type.t
-                  -> Data_type.i64 Data_type.ptr Variable.t)
+    -> gen_fresh:Variable.gen_fresh
     -> base:Data_type.strct Variable.t
     -> offset:int
     -> Data_type.i64 Data_type.ptr Variable.t
 
   val append_load :
        t
-    -> gen_fresh:(Data_type.i64 Data_type.t -> Data_type.i64 Variable.t)
+    -> gen_fresh:Variable.gen_fresh
     -> ptr:Data_type.i64 Data_type.ptr Variable.t
     -> Data_type.i64 Variable.t
 
@@ -75,11 +69,11 @@ module Block : sig
     -> arg:Data_type.i64 Variable.t
     -> unit
 
+  val append_store_const :
+    t -> ptr:Data_type.i64 Data_type.ptr Variable.t -> const:int -> unit
+
   val append_const :
-       t
-    -> gen_fresh:(Data_type.i64 Data_type.t -> Data_type.i64 Variable.t)
-    -> value:int
-    -> Data_type.i64 Variable.t
+    t -> gen_fresh:Variable.gen_fresh -> value:int -> Data_type.i64 Variable.t
 
   val append_printi : t -> arg:Data_type.i64 Variable.t -> unit
 
@@ -94,14 +88,14 @@ module Block : sig
 
   val append_ne :
        t
-    -> gen_fresh:(Data_type.i1 Data_type.t -> Data_type.i1 Variable.t)
+    -> gen_fresh:Variable.gen_fresh
     -> arg1:Data_type.i64 Variable.t
     -> arg2:Data_type.i64 Variable.t
     -> Data_type.i1 Variable.t
 
   val append_add :
        t
-    -> gen_fresh:(Data_type.i64 Data_type.t -> Data_type.i64 Variable.t)
+    -> gen_fresh:Variable.gen_fresh
     -> arg1:Data_type.i64 Variable.t
     -> arg2:Data_type.i64 Variable.t
     -> Data_type.i64 Variable.t

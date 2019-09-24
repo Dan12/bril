@@ -1,0 +1,22 @@
+main {
+  v: int = const 4;
+  w: int = const 5;
+  x: bool = eq v w;
+  print x;
+  v: int = const -4;
+  w: int = const 5;
+  x: bool = eq v w;
+  print x;
+  v: int = const -4;
+  w: int = const 4;
+  x: bool = eq v w;
+  print x;
+  v: int = const -4;
+  w: int = const -4;
+  x: bool = eq v w;
+  print x;
+  v: int = const 222224141515;
+  w: int = const -222224141515;
+  x: bool = eq v w;
+  print x;
+}

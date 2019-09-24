@@ -1,0 +1,10 @@
+main {
+  v: int = const 15;
+  w: int = const 27;
+  x: bool = const true;
+  br x there here;
+here:
+  ret;
+there:
+  print v;
+}

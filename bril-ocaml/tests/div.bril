@@ -1,0 +1,34 @@
+main {
+  v: int = const 4;
+  w: int = const 5;
+  v: int = mul v w;
+  print v;
+  v: int = const -4;
+  w: int = const 5;
+  v: int = mul v w;
+  print v;
+  v: int = const -4;
+  w: int = const -5;
+  v: int = mul v w;
+  print v;
+  v: int = const -4;
+  w: int = const 0;
+  v: int = mul v w;
+  print v;
+  v: int = const -2147483647;
+  w: int = const 2147483647;
+  v: int = mul v w;
+  print v;
+  v: int = const -4611686018427387904;
+  w: int = const -1;
+  v: int = mul v w;
+  print v;
+  v: int = const 10;
+  w: int = const 2;
+  v: int = div v w;
+  print v;
+  v: int = const 31;
+  w: int = const 17;
+  v: int = div v w;
+  print v;
+}
