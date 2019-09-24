@@ -17,7 +17,7 @@ type bin_op_data = {dest: ident; arg_l: ident; arg_r: ident; typ: typ}
 
 type un_op_data = {dest: ident; arg: ident; typ: typ} [@@deriving sexp]
 
-type id_data = {dest: ident; arg: ident} [@@deriving sexp]
+(* type id_data = {dest: ident; typ: typ; arg: ident} [@@deriving sexp] *)
 
 type const_data = {dest: ident; value: value; typ: typ} [@@deriving sexp]
 
@@ -26,7 +26,7 @@ type operation =
   | Jmp of jmp_data
   | Print of print_data
   | Ret
-  | Id of id_data
+  | Id of un_op_data
   | Const of const_data
   | Nop
   | Add of bin_op_data

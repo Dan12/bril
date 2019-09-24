@@ -40,9 +40,10 @@ let transform_print (instr : Parse.instr) : print_data Or_error.t =
   | _ ->
       Or_error.error_s [%message "Incorrect data format for print operation"]
 
-let transform_id (instr : Parse.instr) : id_data Or_error.t =
-  match (instr.dest, instr.args) with
-  | Some dest, Some [arg] -> Or_error.return {dest; arg}
+let transform_id (instr : Parse.instr) : un_op_data Or_error.t =
+  match (instr.dest, instr.typ, instr.args) with
+  | Some dest, Some typ, Some [arg] ->
+      Or_error.map (transform_typ typ) ~f:(fun typ -> {dest; typ; arg})
   | _ -> Or_error.error_s [%message "Incorrect data format for id operation"]
 
 let transform_const (instr : Parse.instr) : const_data Or_error.t =

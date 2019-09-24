@@ -1,13 +1,16 @@
 main {
   i: int = const 0;
   x: int = const 0;
-  n: int = const 10;
+  s: int = const 1;
+  inv: int = const -1;
+  n: int = const 50000;
 guard:
   g: bool = ge i n;
   br g end body;
 body:
-  sq: int = mul i i;
-  x: int = add x sq;
+  sm: int = mul i s;
+  s:int = mul s inv;
+  x: int = add x sm;
   one: int = const 1;
   i: int = add i one;
   jmp guard;

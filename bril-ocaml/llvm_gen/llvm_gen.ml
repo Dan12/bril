@@ -16,6 +16,21 @@ let collect_variables (instrs : function_instruction list) : ident list =
             dest :: vars
         | _ -> vars ) )
 
+let collect_variables_and_types (instrs : function_instruction list) :
+    ident list * typ list =
+  List.fold instrs ~init:([], []) ~f:(fun (vars, typs) instr ->
+      match instr with
+      | Label _ -> (vars, typs)
+      | Operation op -> (
+        match op with
+        | Any {ex= Mutation_op {dest; typ; _}; _}
+          when not (List.mem vars dest ~equal:String.equal) ->
+            (dest :: vars, typ :: typs)
+        | Any {ex= Id_op {dest; typ; _}; _}
+          when not (List.mem vars dest ~equal:String.equal) ->
+            (dest :: vars, typ :: typs)
+        | _ -> (vars, typs) ) )
+
 let create_fresh_var_gen current_vars =
   let i = ref 0 in
   let rec gen_fresh_var () =
@@ -68,7 +83,8 @@ let gen_store_var_to_stack ~gen_fresh ~var_map ~dest to_store =
 let gen_value (value : value) =
   match value with Int i -> i | Bool b -> if b then 1 else 0
 
-let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
+let gen_op_str gen_fresh (var_map : int String.Map.t) (typ_map : typ Int.Map.t)
+    (op : any_op) =
   let (Any op) = op in
   match op with
   | {ex= Effect_op {args; _}; _} -> (
@@ -81,11 +97,26 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
               let load_str, result_var =
                 gen_load_from_stack ~gen_fresh ~var_map arg
               in
-              sprintf {|
+              match Map.find var_map arg with
+              | None -> ""
+              | Some idx -> (
+                match Map.find typ_map idx with
+                | None -> ""
+                | Some typ -> (
+                  match typ with
+                  | Int ->
+                      sprintf {|
   %s
   call void @printi(i64 %%%s)
 |} load_str
-                result_var )
+                        result_var
+                  | Bool ->
+                      sprintf {|
+
+  %s
+  call void @printb(i64 %%%s)
+|}
+                        load_str result_var ) ) )
         in
         sprintf "%s" (String.concat arg_prints ~sep:"\n")
     | Br {var; true_l; false_l} ->
@@ -152,15 +183,15 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
             let op_str =
               match op with
               | Eq -> "eq"
-              | Lt -> "lt"
-              | Gt -> "gt"
-              | Le -> "le"
-              | Ge -> "ge"
+              | Lt -> "slt"
+              | Gt -> "sgt"
+              | Le -> "sle"
+              | Ge -> "sge"
             in
             let cmp_result = gen_fresh () in
             sprintf
               {|
-  %%%s = icmp s%s i64 %%%s, %%%s
+  %%%s = icmp %s i64 %%%s, %%%s
   %%%s = zext i1 %%%s to i64
 |}
               cmp_result op_str left_result right_result result_var cmp_result
@@ -173,7 +204,7 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
 |} load_left_str load_right_str binop_str
         store_str
   | {ex= Nop_op; _} -> ""
-  | {ex= Id_op {dest; arg}; _} ->
+  | {ex= Id_op {dest; arg; _}; _} ->
       let load_str, load_result =
         gen_load_from_stack ~gen_fresh ~var_map arg
       in
@@ -186,8 +217,8 @@ let gen_op_str gen_fresh (var_map : int String.Map.t) (op : any_op) =
 |} load_str store_str
 
 let gen_block_str gen_fresh (var_map : int String.Map.t)
-    (block : labeled_block) =
-  let instrs = List.map block.ops ~f:(gen_op_str gen_fresh var_map) in
+    (typ_map : typ Int.Map.t) (block : labeled_block) =
+  let instrs = List.map block.ops ~f:(gen_op_str gen_fresh var_map typ_map) in
   let instrs_str = String.concat instrs ~sep:"\n" in
   sprintf {|
 %s:
@@ -196,16 +227,22 @@ let gen_block_str gen_fresh (var_map : int String.Map.t)
 
 let gen_function (funct : funct) =
   let name = funct.name in
-  let vars = collect_variables funct.instrs in
+  let vars, typs = collect_variables_and_types funct.instrs in
   let var_idx_map =
     List.foldi vars ~init:String.Map.empty ~f:(fun idx map var ->
         Map.set map ~key:var ~data:idx )
+  in
+  let idx_typ_map =
+    List.foldi typs ~init:Int.Map.empty ~f:(fun idx map typ ->
+        Map.set map ~key:idx ~data:typ )
   in
   let gen_fresh = create_fresh_var_gen vars in
   let stack_size = List.length vars in
   let blocks = basic_block_pass funct.instrs in
   let blocks = add_terminators blocks in
-  let block_strs = List.map blocks ~f:(gen_block_str gen_fresh var_idx_map) in
+  let block_strs =
+    List.map blocks ~f:(gen_block_str gen_fresh var_idx_map idx_typ_map)
+  in
   match blocks with
   | [] -> sprintf {|
 define i64 @%s() {

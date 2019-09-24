@@ -79,7 +79,7 @@ let add_terminators (blocks : labeled_block list) =
 
 let basic_block_pass instrs =
   let blocks = split_blocks instrs in
-  let blocks = prune_empty_blocks blocks in
+  (* let blocks = prune_empty_blocks blocks in *)
   label_blocks blocks
 
 type cfg_node = {ops: any_op list; outgoing_edges: ident list}

@@ -16,7 +16,7 @@ type bin_op_data = {arg_l: ident; arg_r: ident}
 
 type un_op_data = ident
 
-type id_data = {dest: ident; arg: ident}
+type id_data = {dest: ident; typ: typ; arg: ident}
 
 type const_data = value
 

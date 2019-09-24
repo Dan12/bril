@@ -154,7 +154,7 @@ let transform_v2 (op : Bril.operation) : any_op =
         ; ex=
             Mutation_op
               {op= Not; dest; typ; ex= Value_op {op= Not; args= Un_op arg}} }
-  | Id {dest; arg} -> Any {op= Id; ex= Id_op {dest; arg}}
+  | Id {dest; typ; arg} -> Any {op= Id; ex= Id_op {dest; typ; arg}}
   | Nop -> Any {op= Nop; ex= Nop_op}
 
 let transform_instr (instr : Bril.function_instruction) : function_instruction

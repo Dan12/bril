@@ -19,8 +19,11 @@ let gen_op (op : operation) : json =
     | Jmp label -> ("jmp", [("args", gen_args [label])])
     | Print args -> ("print", [("args", gen_args args)])
     | Ret -> ("ret", [])
-    | Id {dest; arg} ->
-        ("id", [("dest", `String dest); ("args", gen_args [arg])])
+    | Id {dest; typ; arg} ->
+        ( "id"
+        , [ ("dest", `String dest)
+          ; ("type", gen_type typ)
+          ; ("args", gen_args [arg]) ] )
     | Const {dest; value; typ} ->
         ( "const"
         , [ ("dest", `String dest)

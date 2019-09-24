@@ -1,0 +1,30 @@
+main {
+  v: int = const 4;
+  w: int = const 5;
+  x: bool =eq v w;
+  print x;
+  x: bool = gt v w;
+  print x;
+  x: bool = lt w v;
+  print x;
+  v: int = const 5;
+  w: int = const 5;
+  x: bool =eq v w;
+  print x;
+  x: bool = gt v w;
+  print x;
+  x: bool = lt w v;
+  print x;
+  v: int = const 5;
+  w: int = const 5;
+  x: bool = ge v w;
+  print x;
+  x: bool = le w v;
+  print x;
+  v: int = const 6;
+  w: int = const 5;
+  x: bool = ge v w;
+  print x;
+  x: bool = le w v;
+  print x;
+}

@@ -7,4 +7,20 @@ main {
   print x;
   x: bool = not w;
   print x;
+  v: bool = const false;
+  w: bool = const false;
+  x: bool = and v w;
+  print x;
+  v: bool = const true;
+  w: bool = const false;
+  x: bool = and v w;
+  print x;
+  x: bool = or v w;
+  print x;
+  v: bool = const true;
+  w: bool = const true;
+  x: bool = and v w;
+  print x;
+  x: bool = not w;
+  print x;
 }
