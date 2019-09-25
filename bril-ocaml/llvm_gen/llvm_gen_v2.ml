@@ -25,9 +25,16 @@ let collect_variables (instrs : function_instruction list) :
             (dest :: vars, typ_to_data_type typ :: typs)
         | _ -> (vars, typs) ) )
 
+let failwith_s s = failwith (Sexp.to_string s)
+
 let gen_load_from_stack ~stack ~block ~gen_fresh ~var_map to_load =
   match Map.find var_map to_load with
-  | None -> Block.append_const block ~gen_fresh ~value:0
+  | None ->
+      failwith_s
+        [%message
+          "Failed to find variable in variable map"
+            (to_load : string)
+            (var_map : int String.Map.t)]
   | Some load_idx ->
       let ptr =
         Block.append_gen_struct_ptr block ~gen_fresh ~base:stack
@@ -37,7 +44,12 @@ let gen_load_from_stack ~stack ~block ~gen_fresh ~var_map to_load =
 
 let gen_store_to_stack ~stack ~block ~gen_fresh ~var_map ~dest to_store =
   match Map.find var_map dest with
-  | None -> ()
+  | None ->
+      failwith_s
+        [%message
+          "Failed to find variable in variable map"
+            (dest : string)
+            (var_map : int String.Map.t)]
   | Some store_idx ->
       let ptr =
         Block.append_gen_struct_ptr block ~gen_fresh ~base:stack
@@ -47,7 +59,12 @@ let gen_store_to_stack ~stack ~block ~gen_fresh ~var_map ~dest to_store =
 
 let gen_store_const_to_stack ~stack ~block ~gen_fresh ~var_map ~dest value =
   match Map.find var_map dest with
-  | None -> ()
+  | None ->
+      failwith_s
+        [%message
+          "Failed to find variable in variable map"
+            (dest : string)
+            (var_map : int String.Map.t)]
   | Some store_idx ->
       let ptr =
         Block.append_gen_struct_ptr block ~gen_fresh ~base:stack
