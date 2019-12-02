@@ -1,4 +1,4 @@
-# Project 1 - Bril to LLVM transformation (with an OCaml code base)
+# Project 1 - Bril to LLVM using OCaml
 
 ## The Goal
 
@@ -108,10 +108,34 @@ One other interesting aspect of this project was implementing the print function
 v: int = add v w;
 ```
 
-in a Bril program, I would say that variable `v` has type `int`. This may not work in general because the type of a Bril variable can techincally be dynamic. For example, this is legal bril:
+in a Bril program, I would say that variable `v` has type `int`. This may not work in general because the type of a Bril variable can techincally be dynamic. For example, this is legal Bril:
 
 ```
 v: int = const 1;
 v: bool = const true;
 print v;
 ```
+
+This would actually be one potential reason to implement an SSA transformation of Bril before transforming to LLVM (some LLVM optimizations can usually optimize away the stack so for the sake of code efficiency it wasn't strictly necessary). If Bril was in SSA form, then every variable would only have 1 type and we could unambiguously figure out which print to use.
+
+## Evaluation
+
+### Code correctness
+
+In order to evaluate wether I had succeeded at correctly creating code that transforms Bril into LLVM IR I wrote a battery of tests to test every possible operation and every possible edge case of every operation. The way I verified correctness was by generating the LLVM code for a Bril file, compiling and linking the LLVM code with the `helpers.c` file into a binary, running the binary and capturing the standard output of the execution. Then, I ran the same Bril code through `brili` and captured the standard output of that execution. I then compared the two standard outs to see if they agreed. 
+
+One thing that I worried about was that I never defined the expected output of a program. So in the unlikely event that the Bril interpreter and my code have a similar bug (like a copy paste error when handling `add` and `sub`) I would not notice this issue.
+
+I had some test programs that were written in Bril and some that were written in Typescript and compiled to Bril. The former allowed me to test some weird kinds of combinations of instructions not possible to generate by compiling Typescript. The latter allowed me to more easily write large programs that did more complicated things to stress test the code generator.
+
+Some other evaluation metrics were considered, such as comparing the speed of a Bril program when run through the interpreter to the speed of that Bril program when compiled and run natively. However, it was decided that these results would not be very meaningful other that to confirm that running code natively is *much* faster than running code in an interpreter.
+
+Additionally, measuring the speed at which Bril programs can be transformed to LLVM as a function of their code size would be an interesting extension to this project. We would likely prefer that this transformation take a linear amount of time in relation to the size of the input program.
+
+### Code design
+
+As mentioned above, one aspect where I felt like this project didn't succeed was in creating a good, strongly typed, OCaml representation of the Bril AST. Additionally, the way the LLVM code was generated was by simply generating strings of LLVM instructions for each Bril opcode. One potential way to improve upon this is to make an OCaml module that describes the LLVM AST and then write code to transform the Bril AST into the LLVM AST. Then we could just convert the LLVM AST to a string and output it to a file. 
+
+Another potential way and one I started to explore is similar to how you can generate LLVM code in C++. You create function objects and basic block objects within those functions and then append instructions to those basic block objects. I tried to do something similar and add some static type checking when composing certain types of operations. For example, a `br` instruction takes in an `i1` argument (a boolean). So I tried to write some operation builders with some input and output type constraints. This also lead to a lot of struggling with the OCaml type system but I was able to get something reasonable working for a subset of Bril operations. You can check it out [here](https://github.com/Dan12/bril/blob/master/bril-ocaml/llvm_gen/llvm.ml)
+
+The hardest part of this project was definitely trying to get a good representation of the Bril AST in Ocaml. I think I might want to revisit this representation in future projects and try and get something that I am happy with. One interesting comparison would have been to also try to do this project in Typescript, since it has some cool type constructs.
