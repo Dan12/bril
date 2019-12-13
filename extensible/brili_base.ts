@@ -1,5 +1,4 @@
 import * as bril from './bril_base';
-import {unreachable} from './util';
 
 export type Value = boolean | BigInt;
 export type Env = Map<bril.Ident, any>;
@@ -55,13 +54,17 @@ export type Action =
 export let NEXT: Action = {"next": true};
 export let END: Action = {"end": true};
 
+export type ProgramState = {}
+export type FunctionState = {env: Env};
+
 /**
  * Interpret an instruction in a given environment, possibly updating the
  * environment. If the instruction branches to a new label, return that label;
  * otherwise, return "next" to indicate that we should proceed to the next
  * instruction or "end" to terminate the function.
  */
-export function evalInstr(instr: bril.Instruction, env: Env): Action {
+export function evalInstr<P extends ProgramState,F extends FunctionState>(instr: bril.Instruction, programState:P, functionState:F): Action {
+  let env = functionState.env;
   switch (instr.op) {
   case "const":
     // Ensure that JSON ints get represented appropriately.
@@ -180,6 +183,4 @@ export function evalInstr(instr: bril.Instruction, env: Env): Action {
     return NEXT;
   }
   }
-  unreachable(instr);
-  throw `unhandled opcode ${(instr as any).op}`;
 }

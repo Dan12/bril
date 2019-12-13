@@ -9,7 +9,8 @@ type Pointer = {
 
 export type Value = boolean | Pointer | BigInt;
 
-export type ProgramState = Heap<Value>;
+export type ProgramState = {heap: Heap<Value>};
+export type FunctionState = {env: brili_base.Env};
 
 function alloc(ptrType: bril.PointerType, amt: number, heap: Heap<Value>): Pointer {
   if (typeof ptrType != 'object') {
@@ -37,8 +38,10 @@ function getPtr(instr: bril.Operation, env: brili_base.Env, index: number): Poin
   return val;
 }
 
-export function evalInstr<A>(ext_eval: (instr: A, env: brili_base.Env) => brili_base.Action) {
-  return (instr: any, env: brili_base.Env, heap: Heap<Value>): brili_base.Action => {
+export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_eval: (instr: A, programState:P, functionState:F) => brili_base.Action) {
+  return (instr: any, programState:P, functionState:F): brili_base.Action => {
+    let heap = programState.heap;
+    let env = functionState.env;
     switch (instr.op) {
       case "alloc": {
         let amt = brili_base.getInt(instr, env, 0)
@@ -91,7 +94,7 @@ export function evalInstr<A>(ext_eval: (instr: A, env: brili_base.Env) => brili_
       }
 
       default: {
-        return ext_eval(instr, env);
+        return ext_eval(instr, programState, functionState);
       }
     }
 
