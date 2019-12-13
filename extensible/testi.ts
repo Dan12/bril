@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {readStdin, unreachable} from '../bril-ts/util';
+import {readStdin} from '../bril-ts/util';
 
 export type Ident = string;
 
@@ -38,19 +38,26 @@ export interface Label {
 
   export type PC = {function:string; index:number};
 
+  function capFirst(str: string) {
+    return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
 export class BaseInterpreter {
     env: Env;
-    opDispatchTable: {[x:string] : (instr: Instruction) => void};
+    // opDispatchTable: {[x:string] : (instr: Instruction) => void};
     pc: PC;
+    terminated: boolean;
     program: Program;
 
     constructor(program: Program) {
         this.env = new Map();
-        this.opDispatchTable = {
-            "id": this.evalId,
-            "add": this.evalAdd
-        }
+
+        // this.opDispatchTable = {
+        //     "id": this.evalId,
+        //     "add": this.evalAdd
+        // }
         this.program = program;
+        this.terminated = false;
         this.pc = this.getEntryPoint();
     }
 
@@ -259,20 +266,19 @@ export class BaseInterpreter {
     }
 
     evalRet(instr: Instruction) {
-        this.pc.index = -1;
+        this.terminated = true;
     }
 
     run() {
-        while(true) {
+        while(!this.terminated) {
             let nextInstr = this.getInstruction(this.pc);
             if (nextInstr === null) {
-                // terminate
-                break;
+                throw `program terminated at invalid pc ${this.pc.function} ${this.pc.index}`;
             } else if ("op" in nextInstr) {
-
-                let dispatchFunc = this.opDispatchTable[nextInstr.op];
+                // let dispatchFunc = this.opDispatchTable[nextInstr.op];
+                let dispatchFunc = Reflect.get(this, "eval"+capFirst(nextInstr.op));
                 if (dispatchFunc) {
-                    dispatchFunc(nextInstr);
+                    Reflect.apply(dispatchFunc, this, [nextInstr]);
                 } else {
                     throw `unhandled opcode ${(nextInstr as any).op}`;
                 }
@@ -284,14 +290,7 @@ export class BaseInterpreter {
     }
 }
 
-
-/**
- * Interpret an instruction in a given environment, possibly updating the
- * environment. If the instruction branches to a new label, return that label;
- * otherwise, return "next" to indicate that we should proceed to the next
- * instruction or "end" to terminate the function.
- */
-
+/* Run the json program passed through stdin */
 async function main() {
   let prog = JSON.parse(await readStdin()) as Program;
   let interpreter = new BaseInterpreter(prog);

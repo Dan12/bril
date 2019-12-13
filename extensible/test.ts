@@ -1,15 +1,15 @@
-type Ident = string;
+// type Ident = string;
 
-type Type = "int" | "bool";
+// type Type = "int" | "bool";
 
-type TypeExt = Type | "ptr";
+// type TypeExt = Type | "ptr";
 
-interface EffectOperation {
-    op: "br" | "jmp" | "print" | "ret";
-    args: Ident[];
-  }
+// interface EffectOperation {
+//     op: "br" | "jmp" | "print" | "ret";
+//     args: Ident[];
+//   }
 
-  interface ExtEffectOperation {
-    op: EffectOperation["op"] | "store" | "free"
-    args: Ident[];
-  }
+//   interface ExtEffectOperation {
+//     op: EffectOperation["op"] | "store" | "free"
+//     args: Ident[];
+//   }
