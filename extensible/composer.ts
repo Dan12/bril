@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import * as brili from './brili_base';
 import * as brili_mem from './brili_mem';
-import * as bril_rec from './brili_rec';
-import { unreachable, readStdin } from './util';
+import * as brili_rec from './brili_rec';
+import { readStdin } from './util';
 import { Heap } from './heap';
 
 type evalFunc<P,F> = (instr: any, programState:P, functionState:F) => brili.Action;
@@ -56,6 +56,9 @@ class Brili<P,F> {
   }
 }
 
+type ProgramState = {heap: Heap<brili_mem.Value>};
+type FunctionState = {env: brili.Env, typeEnv: brili_rec.TypeEnv};
+
 async function main() {
   let prog = JSON.parse(await readStdin());
 
@@ -63,10 +66,10 @@ async function main() {
     return {heap: new Heap<brili_mem.Value>()};
   };
   let initF = () => {
-    return {env: new Map()};
+    return {env: new Map(), typeEnv: new Map()};
   };
-  
-  let b = new Brili<brili_mem.ProgramState, brili_mem.FunctionState>(brili.evalInstr, [brili_mem.evalInstr], initP, initF);
+
+  let b = new Brili<ProgramState, FunctionState>(brili.evalInstr, [brili_mem.evalInstr, brili_rec.evalInstr], initP, initF);
   b.evalProg(prog);
 }
 

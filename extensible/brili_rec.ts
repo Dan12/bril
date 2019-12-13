@@ -3,7 +3,7 @@ import * as brili_base from './brili_base';
 
 type Value = boolean | BigInt | Record;
 type RecordBindings = { [index: string]: Value };
-type TypeEnv = Map<bril.Ident, bril.RecordType>;
+export type TypeEnv = Map<bril.Ident, bril.RecordType>;
 
 interface Record {
   name: string;
@@ -75,8 +75,14 @@ function createRecord(instr: bril.RecordOperation, env: brili_base.Env, typeEnv:
   return rec;
 }
 
-export function evalInstr<A>(ext_eval: (instr: A, env: brili_base.Env) => brili_base.Action) {
-  return (instr: any, env: brili_base.Env, typeEnv: TypeEnv): brili_base.Action => {
+export type ProgramState = {};
+export type FunctionState = {env: brili_base.Env, typeEnv: TypeEnv};
+
+
+export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_eval: (instr: A, programState:P, functionState:F) => brili_base.Action) {
+  return (instr: any, programState:P, functionState:F): brili_base.Action => {
+    let typeEnv = functionState.typeEnv;
+    let env = functionState.env;
     switch (instr.op) {
       case "recorddef": {
         typeEnv.set(instr.recordname, instr.fields);
@@ -104,7 +110,7 @@ export function evalInstr<A>(ext_eval: (instr: A, env: brili_base.Env) => brili_
       }
 
       default: {
-        return ext_eval(instr, env);
+        return ext_eval(instr, programState, functionState);
       }
     }
   }
