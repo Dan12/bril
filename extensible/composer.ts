@@ -5,71 +5,70 @@ import * as brili_rec from './brili_rec';
 import { readStdin } from './util';
 import { Heap } from './heap';
 
-type evalFunc<P,F> = (instr: any, programState:P, functionState:F) => brili.Action;
+type evalFunc<A, P, F> = (instr: any, programState: P, functionState: F) => A;
 
-class Brili<P,F> {
-  evalInstr: evalFunc<P,F>;
+type PC = brili.PC;
+
+type actionHandler<A, P, F> = (action: A, pc: PC, programState: P, functionState: F) => PC;
+
+interface MinProgramState<F> {
+  currentFunctionState : F
+}
+
+class Brili<A, P extends MinProgramState<F>, F> {
+  evalInstr: evalFunc<A, P, F>;
+  handleAction: actionHandler<A, P, F>;
   initP: () => P;
   initF: () => F;
 
-  constructor(base: evalFunc<P,F>, exts: ((ext_func : evalFunc<P,F>) => evalFunc<P,F>)[], initP: () => P, initF: () => F) {
+  constructor(base: evalFunc<A, P, F>, exts: ((extFunc: evalFunc<A, P, F>) => evalFunc<A, P, F>)[], initP: () => P, initF: () => F, handleAction: actionHandler<A, P, F>) {
     this.evalInstr = base;
     for (let ext of exts) {
       this.evalInstr = ext(this.evalInstr);
     }
     this.initP = initP;
     this.initF = initF;
+    this.handleAction = handleAction;
   }
 
-  evalFunc(func: any, programState: P) {
-    let functionState = this.initF();
-    for (let i = 0; i < func.instrs.length; ++i) {
-      let line = func.instrs[i];
+  eval(pc: PC, programState: P) {
+    while (pc.index < pc.function.instrs.length) {
+      let line = pc.function.instrs[pc.index];
       if ('op' in line) {
-        let action = this.evalInstr(line, programState, functionState);
-  
-        if ('label' in action) {
-          // Search for the label and transfer control.
-          for (i = 0; i < func.instrs.length; ++i) {
-            let sLine = func.instrs[i];
-            if ('label' in sLine && sLine.label === action.label) {
-              break;
-            }
-          }
-          if (i === func.instrs.length) {
-            throw `label ${action.label} not found`;
-          }
-        } else if ('end' in action) {
-          return;
-        }
+        let action = this.evalInstr(line, programState, programState.currentFunctionState);
+        pc = this.handleAction(action, pc, programState, programState.currentFunctionState);
+      } else {
+        pc.index++;
       }
     }
   }
-  
+
   evalProg(prog: any) {
     let programState = this.initP();
     for (let func of prog.functions) {
       if (func.name === "main") {
-        this.evalFunc(func, programState);
+        let pc = { function: func, index: 0 };
+        this.eval(pc, programState);
+        break;
       }
     }
   }
 }
 
-type ProgramState = {heap: Heap<brili_mem.Value>};
-type FunctionState = {env: brili.Env, typeEnv: brili_rec.TypeEnv};
+type FunctionState = { env: brili.Env, typeEnv: brili_rec.TypeEnv };
+type ProgramState = { heap: Heap<brili_mem.Value>, currentFunctionState:FunctionState };
 
 async function main() {
   let prog = JSON.parse(await readStdin());
 
-  let initP = () => {
-    return {heap: new Heap<brili_mem.Value>()};
-  };
   let initF = () => {
-    return {env: new Map(), typeEnv: new Map()};
+    return { env: new Map(), typeEnv: new Map() };
+  };
+  let initP = () => {
+    return { heap: new Heap<brili_mem.Value>(), currentFunctionState: initF() };
   };
 
-  let b = new Brili<ProgramState, FunctionState>(brili.evalInstr, [brili_mem.evalInstr, brili_rec.evalInstr], initP, initF);
+  let b = new Brili<brili.Action, ProgramState, FunctionState>(brili.evalInstr, [brili_mem.evalInstr, brili_rec.evalInstr], initP, initF, brili.evalAction);
   b.evalProg(prog);
 }
 

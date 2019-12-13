@@ -184,3 +184,27 @@ export function evalInstr<P extends ProgramState,F extends FunctionState>(instr:
   }
   }
 }
+
+export type PC = {function:any; index:number};
+
+export function evalAction<A, P extends ProgramState,F extends FunctionState>(action: Action | A, pc: PC, programState: P, functionState: F): PC {
+  if ('label' in action) {
+    // Search for the label and transfer control.
+    let i = 0;
+    for (; i < pc.function.instrs.length; ++i) {
+      let sLine = pc.function.instrs[i];
+      if ('label' in sLine && sLine.label === action.label) {
+        break;
+      }
+    }
+    if (i === pc.function.instrs.length) {
+      throw `label ${action.label} not found`;
+    }
+    pc.index = i;
+  } else if ('end' in action) {
+    pc.index = pc.function.instrs.length;
+  } else {
+    pc.index++;
+  }
+  return pc;
+}

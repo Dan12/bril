@@ -38,8 +38,8 @@ function getPtr(instr: bril.Operation, env: brili_base.Env, index: number): Poin
   return val;
 }
 
-export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_eval: (instr: A, programState:P, functionState:F) => brili_base.Action) {
-  return (instr: any, programState:P, functionState:F): brili_base.Action => {
+export function evalInstr<A,P extends ProgramState,F extends FunctionState>(baseEval: (instr: any, programState:P, functionState:F) => A | brili_base.Action) {
+  return (instr: any, programState:P, functionState:F): A | brili_base.Action => {
     let heap = programState.heap;
     let env = functionState.env;
     switch (instr.op) {
@@ -94,7 +94,7 @@ export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_
       }
 
       default: {
-        return ext_eval(instr, programState, functionState);
+        return baseEval(instr, programState, functionState);
       }
     }
 

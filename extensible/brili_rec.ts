@@ -1,7 +1,7 @@
 import * as bril from './bril_rec';
 import * as brili_base from './brili_base';
 
-type Value = boolean | BigInt | Record;
+type Value = brili_base.Value | Record;
 type RecordBindings = { [index: string]: Value };
 export type TypeEnv = Map<bril.Ident, bril.RecordType>;
 
@@ -29,14 +29,14 @@ function copy(o: RecordBindings, name: string) {
   return output;
 }
 
-function checkIntVal(val: Value, index: number | string, op: string) {
+function checkIntVal(val: any, index: number | string, op: string) {
   if (typeof val !== 'bigint') {
     throw `${op} argument ${index} must be a number`;
   }
   return val;
 }
 
-function checkBoolVal(val: Value, index: number | string, op: string) : boolean {
+function checkBoolVal(val: any, index: number | string, op: string) : boolean {
   if (typeof val !== 'boolean') {
     throw `${op} argument ${index} must be a number`;
   }
@@ -78,8 +78,7 @@ function createRecord(instr: bril.RecordOperation, env: brili_base.Env, typeEnv:
 export type ProgramState = {};
 export type FunctionState = {env: brili_base.Env, typeEnv: TypeEnv};
 
-
-export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_eval: (instr: A, programState:P, functionState:F) => brili_base.Action) {
+export function evalInstr<A,P extends ProgramState,F extends FunctionState>(baseEval: (instr: any, programState:P, functionState:F) => brili_base.Action) {
   return (instr: any, programState:P, functionState:F): brili_base.Action => {
     let typeEnv = functionState.typeEnv;
     let env = functionState.env;
@@ -110,7 +109,7 @@ export function evalInstr<A,P extends ProgramState,F extends FunctionState>(ext_
       }
 
       default: {
-        return ext_eval(instr, programState, functionState);
+        return baseEval(instr, programState, functionState);
       }
     }
   }
