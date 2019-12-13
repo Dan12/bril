@@ -1,98 +1,64 @@
-// #!/usr/bin/env node
-// import * as bril_base from './bril_base';
-// import * as bril from './bril_func';
-// import * as brili from './brili_base';
-// import { readStdin, unreachable } from './util';
+import * as bril_base from './bril_base';
+import * as brili_base from './brili_base';
+import * as bril from './bril_func';
+import * as brili from './brili_base';
 
-// type ReturnValue = brili.Value | null;
+class BriliError extends Error {
+  constructor(message?: string) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = BriliError.name;
+  }
+}
 
-// class BriliError extends Error {
-//   constructor(message?: string) {
-//     super(message);
-//     Object.setPrototypeOf(this, new.target.prototype);
-//     this.name = BriliError.name;
-//   }
-// }
+function findFunc(func: bril_base.Ident, funcs: bril.Function[]) {
+  let matches = funcs.filter(function (f: bril.Function) {
+    return f.name === func;
+  });
 
-// function findFunc(func: bril_base.Ident, funcs: bril.Function[]) {
-//   let matches = funcs.filter(function (f: bril.Function) {
-//     return f.name === func;
-//   });
+  if (matches.length == 0) {
+    throw new BriliError(`no function of name ${func} found`);
+  } else if (matches.length > 1) {
+    throw new BriliError(`multiple functions of name ${func} found`);
+  }
 
-//   if (matches.length == 0) {
-//     throw new BriliError(`no function of name ${func} found`);
-//   } else if (matches.length > 1) {
-//     throw new BriliError(`multiple functions of name ${func} found`);
-//   }
+  return matches[0];
+}
 
-//   return matches[0];
-// }
+type CallAction =
+  { "call": bril_base.Ident, "args": bril_base.Ident[] };
 
-// type Action =
-//   {"label": bril_base.Ident} |
-//   {"next": true} |
-//   {"end": ReturnValue};
+export type FunctionState = {};
 
-// /**
-//  * Interpet a call instruction.
-//  */
-// function evalCall(instr: bril.CallOperation, env: brili.Env, funcs: bril.Function[])
-//   : Action {
-//   let func = findFunc(instr.name, funcs);
-//   if (func === null) {
-//     throw new BriliError(`undefined function ${instr.name}`);
-//   }
+type StackFrame<F extends FunctionState> = [bril.Function, F, brili_base.PC];
 
-//   let newEnv: Env = new Map();
+export type ProgramState<F extends FunctionState> = { functions: bril.Function[], currentFunctionState: F, callStack: StackFrame<F>[] };
 
-//   // check arity of arguments and definition
-//   if (func.args.length !== instr.args.length) {
-//     throw new BriliError(`function expected ${func.args.length} arguments, got ${instr.args.length}`);
-//   }
+export function evalInstr<A, P extends ProgramState<F>, F extends FunctionState>(baseEval: (instr: any, programState: P, functionState: F) => A) {
+  return (instr: any, programState: P, functionState: F): A | CallAction => {
+    switch (instr.op) {
+      case "call": {
+        return { "call": instr.args[0], "args": instr.args.slice(1) };
+      }
 
-//   for (let i = 0; i < func.args.length; i++) {
-//     // Look up the variable in the current (calling) environment
-//     let value = get(env, instr.args[i]);
+      default: {
+        return baseEval(instr, programState, functionState);
+      }
 
-//     // Check argument types
-//     if (brilTypeToDynamicType[func.args[i].type] !== typeof value) {
-//       throw new BriliError(`function argument type mismatch`);
-//     }
+    }
+  }
+}
 
-//     // Set the value of the arg in the new (function) environemt
-//     newEnv.set(func.args[i].name, value);
-//   }
-
-//   let valueCall : bril.ValueCallOperation = instr as bril.ValueCallOperation;
-
-//   // Dynamically check the function's return value and type
-//   let retVal = evalFuncInEnv(func, funcs, newEnv);
-//   if (valueCall.dest === undefined && valueCall.type === undefined) {
-//      // Expected void function
-//     if (retVal !== null) {
-//       throw new BriliError(`unexpected value returned without destination`);
-//     }
-//     if (func.type !== undefined) {
-//       throw new BriliError(`non-void function (type: ${func.type}) doesn't return anything`); 
-//     }
-//   } else {
-//     // Expected non-void function
-//     if (valueCall.type === undefined) {
-//       throw new BriliError(`function call must include a type if it has a destination`);  
-//     }
-//     if (valueCall.dest === undefined) {
-//       throw new BriliError(`function call must include a destination if it has a type`);  
-//     }
-//     if (retVal === null) {
-//       throw new BriliError(`non-void function (type: ${func.type}) doesn't return anything`);
-//     }
-//     if (brilTypeToDynamicType[valueCall.type] !== typeof retVal) {
-//       throw new BriliError(`type of value returned by function does not match destination type`);
-//     }
-//     if (func.type !== valueCall.type ) {
-//       throw new BriliError(`type of value returned by function does not match declaration`);
-//     }
-//     env.set(valueCall.dest, retVal);
-//   }
-//   return brili.NEXT;
-// }
+export function evalAction<A extends CallAction, P extends ProgramState<F>,F extends FunctionState>(baseHandle: (action: A, pc: brili_base.PC, programState: P, functionState: F) => brili_base.PC) {
+  return (action: A, pc: brili_base.PC, programState: P, functionState: F): brili_base.PC => {
+    if ('call' in action) {
+      // Search for the label and transfer control.
+      
+      return pc;
+    } else {
+      return baseHandle(action, pc, programState, functionState);
+    }
+  }
+}
+  
+  

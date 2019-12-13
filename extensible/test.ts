@@ -16,34 +16,36 @@
 
 interface A {
   op: "A" | "B" | "C";
-  args: string[];
   f1:number;
 }
 
 interface B {
   op: "D" | "E";
-  args: string[];
   f2:boolean;
 }
 
 interface C {
-  op: "C" | "E";
-  args: string[];
+  op: "A" | "E";
   f3:string;
 }
 
-interface Common {
-  op: any;
+interface notA<X> {
+  op: Exclude<X,A["op"]>
 }
 
-// type A = "A" | "B" | "C";
-// type B = "D" | "E";
-// type C = "C" | "E";
-
-function test<X extends Common>(op: A | Exclude<X,A>) {
-  switch(op.op) {
+function test<Y,X extends notA<Y>>(instr: A | X, f: (x:X) => number) {
+  switch(instr.op) {
     case "A" : {
-      return true;
+      return instr.f1;  
+    }
+    case "B" : {
+      return instr.f1;
+    }
+    case "C" : {
+      return instr.f1;
+    }
+    default: {
+      return f(instr);
     }
   }
 }

@@ -78,8 +78,8 @@ function createRecord(instr: bril.RecordOperation, env: brili_base.Env, typeEnv:
 export type ProgramState = {};
 export type FunctionState = {env: brili_base.Env, typeEnv: TypeEnv};
 
-export function evalInstr<A,P extends ProgramState,F extends FunctionState>(baseEval: (instr: any, programState:P, functionState:F) => brili_base.Action) {
-  return (instr: any, programState:P, functionState:F): brili_base.Action => {
+export function evalInstr<A,P extends ProgramState,F extends FunctionState>(baseEval: (instr: any, programState:P, functionState:F) => A | brili_base.Action) {
+  return (instr: any, programState:P, functionState:F): A | brili_base.Action => {
     let typeEnv = functionState.typeEnv;
     let env = functionState.env;
     switch (instr.op) {
