@@ -1,1 +1,1 @@
-command = "brilext2json < {filename} | ../../build/extensible/composer.js"
+command = "brilext2json < {filename} | ../../build/brili.js"

@@ -1,4 +1,5 @@
 composable extensions, don't know exactly what you are extending, different from polyglot
 dynamic type checking in the form of structural verification
 some unsoundness (give examples)
-would be nice to have generic X and A | X not A
+would be nice to have generic X and A | X not A (actually no)
+error messages for type errors are sometimes unreadable because of all the generics
