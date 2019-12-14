@@ -1,6 +1,7 @@
 import * as bril_base from './bril_base';
 import * as brili_base from './brili_base';
 import * as bril from './bril_func';
+import * as util from './util';
 
 class BriliError extends Error {
   constructor(message?: string) {
@@ -34,17 +35,23 @@ export type StackFrame<F extends FunctionState> = [F, brili_base.PC];
 
 export type ProgramState<F extends FunctionState> = { functions: bril.Function[], currentFunctionState: F, callStack: StackFrame<F>[], initF: () => F };
 
-export function evalInstr<A, P extends ProgramState<F>, F extends FunctionState>(baseEval: (instr: any, programState: P, functionState: F) => A) {
-  return (instr: any, programState: P, functionState: F): A | Actions => {
-    switch (instr.op) {
-      case "call": {
-        return { "call": instr.args[0], "args": instr.args.slice(1) };
-      }
+const instrOps = ["call"] as const;
+// This implements a type equality check for the above array, providing some static safety
+type CheckLE = (typeof instrOps)[number] extends (bril.Instruction["op"]) ? any : never;
+type CheckGE = (bril.Instruction["op"]) extends (typeof instrOps)[number] ? any : never;
+let _: [CheckLE, CheckGE] = [0, 0];
 
-      default: {
-        return baseEval(instr, programState, functionState);
-      }
+function isInstruction(instr: { op: string }): instr is bril.Instruction {
+  // very loose dynamic type saftey
+  return instrOps.some(op => op === instr.op);
+}
 
+export function evalInstr<A, P extends ProgramState<F>, F extends FunctionState, I extends util.BaseInstruction>(baseEval: (instr: I, programState: P, functionState: F) => A) {
+  return (instr: bril.Instruction | I, programState: P, functionState: F): A | Actions => {
+    if (isInstruction(instr)) {
+      return { "call": instr.args[0], "args": instr.args.slice(1) };
+    } else {
+      return baseEval(instr, programState, functionState);
     }
   }
 }

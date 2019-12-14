@@ -3,10 +3,14 @@ import * as brili from './brili_base';
 import * as brili_mem from './brili_mem';
 import * as brili_rec from './brili_rec';
 import * as brili_func from './brili_func';
-import { readStdin } from './util';
+import * as bril from './bril_base';
+import * as bril_mem from './bril_mem';
+import * as bril_rec from './bril_rec';
+import * as bril_func from './bril_func';
+import { readStdin, BaseInstruction } from './util';
 import { Heap } from './heap';
 
-type evalFunc<A, P, F> = (instr: any, programState: P, functionState: F) => A;
+type evalFunc<A, P, F, I> = (instr: I, programState: P, functionState: F) => A;
 
 type PC = brili.PC;
 
@@ -16,17 +20,20 @@ interface MinProgramState<F> {
   currentFunctionState: F
 }
 
-class Brili<A, P extends MinProgramState<F>, F> {
-  evalInstr: evalFunc<A, P, F>;
+class Brili<A, P extends MinProgramState<F>, F, I extends BaseInstruction> {
+  evalInstr: evalFunc<A, P, F, I>;
   handleAction: actionHandler<A, P, F>;
   initP: () => P;
   initF: () => F;
 
-  constructor(base: evalFunc<A, P, F>, exts: ((extFunc: evalFunc<A, P, F>) => evalFunc<A, P, F>)[], initP: () => P, initF: () => F, baseActionHandle: actionHandler<A, P, F>, actionHandleExts: ((extFunc: actionHandler<A, P, F>) => actionHandler<A, P, F>)[]) {
-    this.evalInstr = base;
-    for (let ext of exts) {
+  constructor(evalExts: ((extFunc: evalFunc<A, P, F, I>) => evalFunc<A, P, F, I>)[], initP: () => P, initF: () => F, baseActionHandle: actionHandler<A, P, F>, actionHandleExts: ((extFunc: actionHandler<A, P, F>) => actionHandler<A, P, F>)[]) {
+    this.evalInstr = (instr,_programState,_functionState) => {
+      throw `unhandled instruction: ${instr.op}`;
+    }
+    for (let ext of evalExts) {
       this.evalInstr = ext(this.evalInstr);
     }
+
     this.initP = initP;
     this.initF = initF;
     this.handleAction = baseActionHandle;
@@ -75,7 +82,7 @@ async function main() {
   let prog = JSON.parse(await readStdin());
   let initP = initPFunc(prog.functions);
 
-  let b = new Brili<brili.Action | brili_func.Actions, ProgramState, FunctionState>(brili.evalInstr, [brili_mem.evalInstr, brili_rec.evalInstr, brili_func.evalInstr], initP, initF, brili.evalAction, [brili_func.evalAction]);
+  let b = new Brili<brili.Action | brili_func.Actions, ProgramState, FunctionState, bril.Instruction | bril_mem.Instruction | bril_rec.Instruction>([brili.evalInstr, brili_mem.evalInstr, brili_rec.evalInstr], initP, initF, brili.evalAction, []);
   b.evalProg(prog);
 }
 

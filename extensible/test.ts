@@ -24,6 +24,38 @@ interface B {
   f2:boolean;
 }
 
+interface Common {
+  op: string;
+}
+
+function assertUnreachable(x: never): never {
+  throw new Error("Didn't expect to get here");
+}
+
+// const a = ["a", "b"] as const;
+
+
+// function f<X extends (Common | A)>(x: X) {
+//   if (true) {
+//     switch(x.op) {
+//       case "A" : {
+//         return x.f1;
+//       }
+//       case "B" : {
+//         return 1;
+//       }
+//       case "C" : {
+//         return 1;
+//       }
+//     }
+//   }
+//   // return x.op;
+// }
+
+// function g(x: A | B) {
+//   return f(x);
+// }
+
 function isA(a:any): a is A {
   return 'op' in a && 'f1' in a
 }

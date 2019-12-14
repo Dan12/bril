@@ -1,9 +1,10 @@
 import * as bril from './bril_base';
+import { unreachable, BaseInstruction, BaseFunction } from './util';
 
 export type Value = boolean | BigInt;
 export type Env = Map<bril.Ident, any>;
 
-export function get<T>(env: Map<bril.Ident, T>, ident: bril.Ident):T {
+export function get<T>(env: Map<bril.Ident, T>, ident: bril.Ident): T {
   let val = env.get(ident);
   if (typeof val === 'undefined') {
     throw `undefined variable ${ident}`;
@@ -47,17 +48,28 @@ export function getBool(instr: op_and_args, env: Env, index: number) {
  * The thing to do after interpreting an instruction: either transfer
  * control to a label, go to the next instruction, or end thefunction.
  */
-type Label = {"label": bril.Ident};
-type End = {"end": true};
+type Label = { "label": bril.Ident };
+type End = { "end": true };
 export type Action =
   Label |
-  {"next": true} |
+  { "next": true } |
   End;
-export let NEXT: Action = {"next": true};
-export let END: Action = {"end": true};
+export let NEXT: Action = { "next": true };
+export let END: Action = { "end": true };
 
 export type ProgramState = {}
-export type FunctionState = {env: Env};
+export type FunctionState = { env: Env };
+
+const instrOps = ["add", "mul", "sub", "div", "id", "nop", "eq", "lt", "gt", "ge", "le", "not", "and", "or", "br", "jmp", "print", "ret"] as const;
+// This implements a type equality check for the above array, providing some static safety
+type CheckLE = (typeof instrOps)[number] extends (bril.OpCode) ? any : never;
+type CheckGE = (bril.OpCode) extends (typeof instrOps)[number] ? any : never;
+let _: [CheckLE, CheckGE] = [0, 0];
+
+function isInstruction(instr: { op: string }): instr is bril.Instruction {
+  // very loose dynamic type saftey
+  return instrOps.some(op => op === instr.op);
+}
 
 /**
  * Interpret an instruction in a given environment, possibly updating the
@@ -65,130 +77,136 @@ export type FunctionState = {env: Env};
  * otherwise, return "next" to indicate that we should proceed to the next
  * instruction or "end" to terminate the function.
  */
-export function evalInstr<P extends ProgramState,F extends FunctionState>(instr: bril.Instruction, programState:P, functionState:F): Action {
-  let env = functionState.env;
-  switch (instr.op) {
-  case "const":
-    // Ensure that JSON ints get represented appropriately.
-    let value: Value;
-    if (typeof instr.value === "number") {
-      value = BigInt(instr.value);
+export function evalInstr<A, P extends ProgramState, F extends FunctionState, I extends BaseInstruction>(baseEval: (instr: I, programState: P, functionState: F) => A) {
+  return (instr: bril.Instruction | I, programState: P, functionState: F): A | Action => {
+    let env = functionState.env;
+    if (isInstruction(instr)) {
+      switch (instr.op) {
+        case "const":
+          // Ensure that JSON ints get represented appropriately.
+          let value: Value;
+          if (typeof instr.value === "number") {
+            value = BigInt(instr.value);
+          } else {
+            value = instr.value;
+          }
+
+          env.set(instr.dest, value);
+          return NEXT;
+
+        case "id": {
+          let val = get(env, safeArgGet(instr, 0));
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "add": {
+          let val = getInt(instr, env, 0) + getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "mul": {
+          let val = getInt(instr, env, 0) * getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "sub": {
+          let val = getInt(instr, env, 0) - getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "div": {
+          let val = getInt(instr, env, 0) / getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "le": {
+          let val = getInt(instr, env, 0) <= getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "lt": {
+          let val = getInt(instr, env, 0) < getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "gt": {
+          let val = getInt(instr, env, 0) > getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "ge": {
+          let val = getInt(instr, env, 0) >= getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "eq": {
+          let val = getInt(instr, env, 0) === getInt(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "not": {
+          let val = !getBool(instr, env, 0);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "and": {
+          let val = getBool(instr, env, 0) && getBool(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "or": {
+          let val = getBool(instr, env, 0) || getBool(instr, env, 1);
+          env.set(instr.dest, val);
+          return NEXT;
+        }
+
+        case "print": {
+          let values = instr.args.map(i => get(env, i).toString());
+          console.log(...values);
+          return NEXT;
+        }
+
+        case "jmp": {
+          return { "label": safeArgGet(instr, 0) };
+        }
+
+        case "br": {
+          let cond = getBool(instr, env, 0);
+          if (cond) {
+            return { "label": safeArgGet(instr, 1) };
+          } else {
+            return { "label": safeArgGet(instr, 2) };
+          }
+        }
+
+        case "ret": {
+          return END;
+        }
+
+        case "nop": {
+          return NEXT;
+        }
+      }
     } else {
-      value = instr.value;
+      return baseEval(instr, programState, functionState);
     }
-
-    env.set(instr.dest, value);
-    return NEXT;
-
-  case "id": {
-    let val = get(env, safeArgGet(instr, 0));
-    env.set(instr.dest, val);
-    return NEXT;
+    return unreachable(instr);
   }
-
-  case "add": {
-    let val = getInt(instr, env, 0) + getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "mul": {
-    let val = getInt(instr, env, 0) * getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "sub": {
-    let val = getInt(instr, env, 0) - getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "div": {
-    let val = getInt(instr, env, 0) / getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "le": {
-    let val = getInt(instr, env, 0) <= getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "lt": {
-    let val = getInt(instr, env, 0) < getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "gt": {
-    let val = getInt(instr, env, 0) > getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "ge": {
-    let val = getInt(instr, env, 0) >= getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "eq": {
-    let val = getInt(instr, env, 0) === getInt(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "not": {
-    let val = !getBool(instr, env, 0);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "and": {
-    let val = getBool(instr, env, 0) && getBool(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "or": {
-    let val = getBool(instr, env, 0) || getBool(instr, env, 1);
-    env.set(instr.dest, val);
-    return NEXT;
-  }
-
-  case "print": {
-    let values = instr.args.map(i => get(env, i).toString());
-    console.log(...values);
-    return NEXT;
-  }
-
-  case "jmp": {
-    return {"label": safeArgGet(instr, 0)};
-  }
-
-  case "br": {
-    let cond = getBool(instr, env, 0);
-    if (cond) {
-      return {"label": safeArgGet(instr, 1)};
-    } else {
-      return {"label": safeArgGet(instr, 2)};
-    }
-  }
-  
-  case "ret": {
-    return END;
-  }
-
-  case "nop": {
-    return NEXT;
-  }
-  }
-  throw `unhandled opcode ${(instr as any).op}`;
 }
 
-export type PC = {function:any; index:number};
+export type PC = { function: any; index: number };
 
 function isLabel(action: any): action is Label {
   return 'label' in action;
@@ -198,7 +216,7 @@ function isEnd(action: any): action is End {
   return 'end' in action
 }
 
-export function evalAction<A, P extends ProgramState,F extends FunctionState>(action: A | Action, pc: PC, programState: P, functionState: F): PC {
+export function evalAction<A, P extends ProgramState, F extends FunctionState>(action: A | Action, pc: PC, programState: P, functionState: F): PC {
   if (isLabel(action)) {
     // Search for the label and transfer control.
     let i = 0;

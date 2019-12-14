@@ -1,5 +1,6 @@
 import * as bril from './bril_rec';
 import * as brili_base from './brili_base';
+import * as util from './util';
 
 type Value = brili_base.Value | Record;
 type RecordBindings = { [index: string]: Value };
@@ -75,42 +76,55 @@ function createRecord(instr: bril.RecordOperation, env: brili_base.Env, typeEnv:
   return rec;
 }
 
+const instrOps = ["recorddef", "recordinst", "recordwith", "access"] as const;
+// This implements a type equality check for the above array, providing some static safety
+type CheckLE = (typeof instrOps)[number] extends (bril.Instruction["op"]) ? any : never;
+type CheckGE = (bril.Instruction["op"]) extends (typeof instrOps)[number] ? any : never;
+let _:[CheckLE, CheckGE] = [0,0];
+
 export type ProgramState = {};
 export type FunctionState = {env: brili_base.Env, typeEnv: TypeEnv};
 
-export function evalInstr<A,P extends ProgramState,F extends FunctionState>(baseEval: (instr: any, programState:P, functionState:F) => A | brili_base.Action) {
-  return (instr: any, programState:P, functionState:F): A | brili_base.Action => {
+function isInstruction(instr: {op:string}): instr is bril.Instruction {
+  // very loose dynamic type saftey
+  return instrOps.some(op => op === instr.op);
+}
+
+export function evalInstr<A,P extends ProgramState,F extends FunctionState,I extends util.BaseInstruction>(baseEval: (instr: I, programState:P, functionState:F) => A) {
+  return (instr: bril.Instruction | I, programState:P, functionState:F): A | brili_base.Action => {
     let typeEnv = functionState.typeEnv;
     let env = functionState.env;
-    switch (instr.op) {
-      case "recorddef": {
-        typeEnv.set(instr.recordname, instr.fields);
-        return brili_base.NEXT;
+    if (isInstruction(instr)) {
+      switch (instr.op) {
+        case "recorddef": {
+          typeEnv.set(instr.recordname, instr.fields);
+          return brili_base.NEXT;
+        }
+      
+        case "recordinst": {
+          let val = createRecord(instr, env, typeEnv);
+          env.set(instr.dest, val);
+          return brili_base.NEXT;
+        }
+      
+        case "recordwith": {
+          let src_record = brili_base.get(env, instr.src) as Record; 
+          let val = createRecord(instr, env, typeEnv, src_record);
+          env.set(instr.dest, val);
+          return brili_base.NEXT;
+        }
+  
+        case "access": {
+          let record = brili_base.get(env, instr.args[0]);
+          let val = (record as Record).bindings[instr.args[1]];
+          env.set(instr.dest, val);
+          return brili_base.NEXT;
+        }
       }
-    
-      case "recordinst": {
-        let val = createRecord(instr, env, typeEnv);
-        env.set(instr.dest, val);
-        return brili_base.NEXT;
-      }
-    
-      case "recordwith": {
-        let src_record = brili_base.get(env, instr.src) as Record; 
-        let val = createRecord(instr, env, typeEnv, src_record);
-        env.set(instr.dest, val);
-        return brili_base.NEXT;
-      }
-
-      case "access": {
-        let record = brili_base.get(env, instr.args[0]);
-        let val = (record as Record).bindings[instr.args[1]];
-        env.set(instr.dest, val);
-        return brili_base.NEXT;
-      }
-
-      default: {
-        return baseEval(instr, programState, functionState);
-      }
+    } else {
+      return baseEval(instr, programState, functionState);
     }
+    
+    return util.unreachable(instr);
   }
 }
