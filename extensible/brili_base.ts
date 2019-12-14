@@ -50,17 +50,15 @@ export function getBool(instr: op_and_args, env: Env, index: number) {
  */
 type Label = { "label": bril.Ident };
 type End = { "end": true };
-export type Action =
-  Label |
-  { "next": true } |
-  End;
+type Next = { "next": true };
+export type Action = Label | Next | End;
 export let NEXT: Action = { "next": true };
 export let END: Action = { "end": true };
 
 export type ProgramState = {}
 export type FunctionState = { env: Env };
 
-const instrOps = ["add", "mul", "sub", "div", "id", "nop", "eq", "lt", "gt", "ge", "le", "not", "and", "or", "br", "jmp", "print", "ret"] as const;
+const instrOps = ["const", "add", "mul", "sub", "div", "id", "nop", "eq", "lt", "gt", "ge", "le", "not", "and", "or", "br", "jmp", "print", "ret"] as const;
 // This implements a type equality check for the above array, providing some static safety
 type CheckLE = (typeof instrOps)[number] extends (bril.OpCode) ? any : never;
 type CheckGE = (bril.OpCode) extends (typeof instrOps)[number] ? any : never;
@@ -206,7 +204,7 @@ export function evalInstr<A, P extends ProgramState, F extends FunctionState, I 
   }
 }
 
-export type PC = { function: any; index: number };
+export type PC<I extends BaseInstruction, F extends BaseFunction<I>> = { function: F; index: number };
 
 function isLabel(action: any): action is Label {
   return 'label' in action;
@@ -216,7 +214,12 @@ function isEnd(action: any): action is End {
   return 'end' in action
 }
 
-export function evalAction<A, P extends ProgramState, F extends FunctionState>(action: A | Action, pc: PC, programState: P, functionState: F): PC {
+function isNext(action: any): action is Next {
+  return 'next' in action
+}
+
+export function evalAction<A, P extends ProgramState, FS extends FunctionState, I extends BaseInstruction, F extends BaseFunction<I>>(baseHandle: (action: A, pc: PC<I,F>, programState: P, functionState: FS) => PC<I,F>) {
+  return (action: A | Action, pc: PC<I,F>, programState: P, functionState: FS): PC<I,F> => {
   if (isLabel(action)) {
     // Search for the label and transfer control.
     let i = 0;
@@ -230,10 +233,18 @@ export function evalAction<A, P extends ProgramState, F extends FunctionState>(a
       throw `label ${action.label} not found`;
     }
     pc.index = i;
+
+    return pc;
   } else if (isEnd(action)) {
     pc.index = pc.function.instrs.length;
-  } else {
+
+    return pc;
+  } else if (isNext(action)) {
     pc.index++;
+
+    return pc;
+  } else {
+    return baseHandle(action, pc, programState, functionState);
   }
-  return pc;
+}
 }

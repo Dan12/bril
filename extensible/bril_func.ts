@@ -1,4 +1,5 @@
 import * as bril from './bril_base';
+import * as util from './util';
 
 /**
  * An operation that calls another Bril function.
@@ -26,8 +27,8 @@ export interface Argument {
 /**
  * A function consists of a sequence of instructions.
  */
- export interface Function {
+ export interface Function<I extends util.BaseInstruction> {
   name: bril.Ident;
   args: Argument[];
-  instrs: (Instruction | bril.Label)[];
+  instrs: (I | bril.Label)[];
 }

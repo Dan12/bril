@@ -77,7 +77,7 @@ export type EffectOpCode = EffectOperation["op"];
 /**
  * All valid operation opcodes.
  */
-export type OpCode = ValueOpCode | EffectOpCode;
+export type OpCode = ValueOpCode | EffectOpCode | "const";
 
 /**
  * Jump labels just mark a position with a name.

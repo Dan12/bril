@@ -11,8 +11,8 @@ class BriliError extends Error {
   }
 }
 
-function findFunc(func: bril_base.Ident, funcs: bril.Function[]) {
-  let matches = funcs.filter(function (f: bril.Function) {
+function findFunc<I extends util.BaseInstruction, F extends bril.Function<I>>(func: bril_base.Ident, funcs: F[]) {
+  let matches = funcs.filter(function (f: bril.Function<I>) {
     return f.name === func;
   });
 
@@ -31,9 +31,9 @@ export type Actions = CallAction | RetAction;
 
 export type FunctionState = { env: brili_base.Env };
 
-export type StackFrame<F extends FunctionState> = [F, brili_base.PC];
+export type StackFrame<FS extends FunctionState, I extends util.BaseInstruction, F extends util.BaseFunction<I>> = [FS, brili_base.PC<I,F>];
 
-export type ProgramState<F extends FunctionState> = { functions: bril.Function[], currentFunctionState: F, callStack: StackFrame<F>[], initF: () => F };
+export type ProgramState<FS extends FunctionState, I extends util.BaseInstruction, F extends bril.Function<I>> = { functions: F[], currentFunctionState: FS, callStack: StackFrame<FS,I,F>[], initF: () => FS };
 
 const instrOps = ["call"] as const;
 // This implements a type equality check for the above array, providing some static safety
@@ -46,7 +46,7 @@ function isInstruction(instr: { op: string }): instr is bril.Instruction {
   return instrOps.some(op => op === instr.op);
 }
 
-export function evalInstr<A, P extends ProgramState<F>, F extends FunctionState, I extends util.BaseInstruction>(baseEval: (instr: I, programState: P, functionState: F) => A) {
+export function evalInstr<A, P extends ProgramState<F, I, any>, F extends FunctionState, I extends util.BaseInstruction>(baseEval: (instr: I, programState: P, functionState: F) => A) {
   return (instr: bril.Instruction | I, programState: P, functionState: F): A | Actions => {
     if (isInstruction(instr)) {
       return { "call": instr.args[0], "args": instr.args.slice(1) };
@@ -56,12 +56,8 @@ export function evalInstr<A, P extends ProgramState<F>, F extends FunctionState,
   }
 }
 
-function isCall(action: any): action is CallAction {
-  return 'call' in action;
-}
-
-export function evalAction<A, P extends ProgramState<F>, F extends FunctionState>(baseHandle: (action: A, pc: brili_base.PC, programState: P, functionState: F) => brili_base.PC) {
-  return (action: A | Actions, pc: brili_base.PC, programState: P, functionState: F): brili_base.PC => {
+export function evalAction<A, P extends ProgramState<FS, I, F>, FS extends FunctionState, I extends util.BaseInstruction, F extends bril.Function<I>>(baseHandle: (action: A, pc: brili_base.PC<I,F>, programState: P, functionState: FS) => brili_base.PC<I,F>) {
+  return (action: A | Actions, pc: brili_base.PC<I,F>, programState: P, functionState: FS): brili_base.PC<I,F> => {
     let env = functionState.env;
     if ('call' in action) {
       // push current activation record into stack frame
