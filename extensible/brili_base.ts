@@ -185,6 +185,7 @@ export function evalInstr<P extends ProgramState,F extends FunctionState>(instr:
     return NEXT;
   }
   }
+  throw `unhandled opcode ${(instr as any).op}`;
 }
 
 export type PC = {function:any; index:number};

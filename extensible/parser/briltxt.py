@@ -59,14 +59,14 @@ class JSONTransformer(lark.Transformer):
         return {'functions': items}
 
     def ident_type(self, items):
-        return {'ident': items[0], 'type': items[1]}
+        return {'name': items[0], 'type': items[1]}
 
     def func(self, items):
         name = items.pop(0)
         args = []
         instrs = []
         for item in items:
-            if 'ident' in item and 'type' in item:
+            if 'name' in item and 'type' in item:
                 args.append(item)
 
             else:

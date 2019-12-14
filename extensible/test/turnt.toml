@@ -1,1 +1,0 @@
-command = "brilext2json < {filename} | ../build/extensible/composer.js"

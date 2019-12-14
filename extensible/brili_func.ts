@@ -83,6 +83,8 @@ export function evalAction<A, P extends ProgramState<F>, F extends FunctionState
         }
         programState.currentFunctionState = programState.initF();
         programState.currentFunctionState.env = calleeEnv;
+      } else {
+        throw `function requires ${pc.function.args.length} arguments. Got ${action.args.length}`;
       }
 
       return pc;
