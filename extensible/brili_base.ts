@@ -47,10 +47,12 @@ export function getBool(instr: op_and_args, env: Env, index: number) {
  * The thing to do after interpreting an instruction: either transfer
  * control to a label, go to the next instruction, or end thefunction.
  */
+type Label = {"label": bril.Ident};
+type End = {"end": true};
 export type Action =
-  {"label": bril.Ident} |
+  Label |
   {"next": true} |
-  {"end": true};
+  End;
 export let NEXT: Action = {"next": true};
 export let END: Action = {"end": true};
 
@@ -187,8 +189,16 @@ export function evalInstr<P extends ProgramState,F extends FunctionState>(instr:
 
 export type PC = {function:any; index:number};
 
-export function evalAction<A, P extends ProgramState,F extends FunctionState>(action: Action | A, pc: PC, programState: P, functionState: F): PC {
-  if ('label' in action) {
+function isLabel(action: any): action is Label {
+  return 'label' in action;
+}
+
+function isEnd(action: any): action is End {
+  return 'end' in action
+}
+
+export function evalAction<A, P extends ProgramState,F extends FunctionState>(action: A | Action, pc: PC, programState: P, functionState: F): PC {
+  if (isLabel(action)) {
     // Search for the label and transfer control.
     let i = 0;
     for (; i < pc.function.instrs.length; ++i) {
@@ -201,7 +211,7 @@ export function evalAction<A, P extends ProgramState,F extends FunctionState>(ac
       throw `label ${action.label} not found`;
     }
     pc.index = i;
-  } else if ('end' in action) {
+  } else if (isEnd(action)) {
     pc.index = pc.function.instrs.length;
   } else {
     pc.index++;

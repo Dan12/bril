@@ -7,7 +7,7 @@
     "brili": "build/brili.js"
   },
   "scripts": {
-    "build": "tsc && chmod a+x build/extensible/testi.js"
+    "build": "tsc && chmod a+x build/extensible/composer.js"
   },
   "dependencies": {
     "@types/node": "^11.13.5",
