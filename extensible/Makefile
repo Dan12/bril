@@ -1,6 +1,7 @@
 TESTS := test/base/*.bril \
 	test/record/*.bril \
 	test/mem/mem/*.bril \
+	test/comp/*.bril \
 	test/func/*.bril
 
 .PHONY: test

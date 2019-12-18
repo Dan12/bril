@@ -60,8 +60,8 @@ export type FunctionState = { env: Env };
 
 const instrOps = ["const", "add", "mul", "sub", "div", "id", "nop", "eq", "lt", "gt", "ge", "le", "not", "and", "or", "br", "jmp", "print", "ret"] as const;
 // This implements a type equality check for the above array, providing some static safety
-type CheckLE = (typeof instrOps)[number] extends (bril.OpCode) ? any : never;
-type CheckGE = (bril.OpCode) extends (typeof instrOps)[number] ? any : never;
+type CheckLE = (typeof instrOps)[number] extends (bril.Instruction["op"]) ? any : never;
+type CheckGE = (bril.Instruction["op"]) extends (typeof instrOps)[number] ? any : never;
 let _: [CheckLE, CheckGE] = [0, 0];
 
 function isInstruction(instr: { op: string }): instr is bril.Instruction {
@@ -218,33 +218,205 @@ function isNext(action: any): action is Next {
   return 'next' in action
 }
 
-export function evalAction<A, P extends ProgramState, FS extends FunctionState, I extends BaseInstruction, F extends BaseFunction<I>>(baseHandle: (action: A, pc: PC<I,F>, programState: P, functionState: FS) => PC<I,F>) {
-  return (action: A | Action, pc: PC<I,F>, programState: P, functionState: FS): PC<I,F> => {
-  if (isLabel(action)) {
-    // Search for the label and transfer control.
-    let i = 0;
-    for (; i < pc.function.instrs.length; ++i) {
-      let sLine = pc.function.instrs[i];
-      if ('label' in sLine && sLine.label === action.label) {
-        break;
+export function evalAction<A, P extends ProgramState, FS extends FunctionState, I extends BaseInstruction, F extends BaseFunction<I>>(baseHandle: (action: A, pc: PC<I, F>, programState: P, functionState: FS) => PC<I, F>) {
+  return (action: A | Action, pc: PC<I, F>, programState: P, functionState: FS): PC<I, F> => {
+    if (isLabel(action)) {
+      // Search for the label and transfer control.
+      let i = 0;
+      for (; i < pc.function.instrs.length; ++i) {
+        let sLine = pc.function.instrs[i];
+        if ('label' in sLine && sLine.label === action.label) {
+          break;
+        }
       }
+      if (i === pc.function.instrs.length) {
+        throw `label ${action.label} not found`;
+      }
+      pc.index = i;
+
+      return pc;
+    } else if (isEnd(action)) {
+      pc.index = pc.function.instrs.length;
+
+      return pc;
+    } else if (isNext(action)) {
+      pc.index++;
+
+      return pc;
+    } else {
+      return baseHandle(action, pc, programState, functionState);
     }
-    if (i === pc.function.instrs.length) {
-      throw `label ${action.label} not found`;
-    }
-    pc.index = i;
-
-    return pc;
-  } else if (isEnd(action)) {
-    pc.index = pc.function.instrs.length;
-
-    return pc;
-  } else if (isNext(action)) {
-    pc.index++;
-
-    return pc;
-  } else {
-    return baseHandle(action, pc, programState, functionState);
   }
 }
+
+import { Extension } from './framework';
+import { BaseAction } from './util';
+import * as util from './util';
+
+export class BriliBase<A_comp extends BaseAction, P_comp extends ProgramState, FS_comp extends FunctionState, I_comp extends BaseInstruction, F_comp extends BaseFunction<I_comp>> extends Extension<util.Action, ProgramState, FunctionState, bril.Instruction, BaseFunction<bril.Instruction>, A_comp, P_comp, FS_comp, I_comp, F_comp> {
+
+  isExtInstr(instr: { op: string }): instr is bril.Instruction {
+    // very loose dynamic type saftey
+    return instrOps.some(op => op === instr.op);
+  }
+
+  evalExtInstr(instr: bril.Instruction, programState: ProgramState, functionState: FunctionState): util.Action {
+    let env = functionState.env;
+    switch (instr.op) {
+      case "const":
+        // Ensure that JSON ints get represented appropriately.
+        let value: Value;
+        if (typeof instr.value === "number") {
+          value = BigInt(instr.value);
+        } else {
+          value = instr.value;
+        }
+
+        env.set(instr.dest, value);
+        return util.NEXT;
+
+      case "id": {
+        let val = get(env, safeArgGet(instr, 0));
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "add": {
+        let val = getInt(instr, env, 0) + getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "mul": {
+        let val = getInt(instr, env, 0) * getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "sub": {
+        let val = getInt(instr, env, 0) - getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "div": {
+        let val = getInt(instr, env, 0) / getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "le": {
+        let val = getInt(instr, env, 0) <= getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "lt": {
+        let val = getInt(instr, env, 0) < getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "gt": {
+        let val = getInt(instr, env, 0) > getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "ge": {
+        let val = getInt(instr, env, 0) >= getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "eq": {
+        let val = getInt(instr, env, 0) === getInt(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "not": {
+        let val = !getBool(instr, env, 0);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "and": {
+        let val = getBool(instr, env, 0) && getBool(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "or": {
+        let val = getBool(instr, env, 0) || getBool(instr, env, 1);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "print": {
+        let values = instr.args.map(i => get(env, i).toString());
+        console.log(...values);
+        return util.NEXT;
+      }
+
+      case "jmp": {
+        return util.jmpTo(safeArgGet(instr, 0));
+      }
+
+      case "br": {
+        let cond = getBool(instr, env, 0);
+        if (cond) {
+          return util.jmpTo(safeArgGet(instr, 1));
+        } else {
+          return util.jmpTo(safeArgGet(instr, 2));
+        }
+      }
+
+      case "ret": {
+        return util.END;
+      }
+
+      case "nop": {
+        return util.NEXT;
+      }
+    }
+  }
+
+  handleExtAction(action: util.Action, pc: PC<I_comp, F_comp>, programState: P_comp, functionState: FS_comp): PC<I_comp, F_comp> {
+    switch (action.type) {
+      case "label": {
+        // Search for the label and transfer control.
+        let i = 0;
+        for (; i < pc.function.instrs.length; ++i) {
+          let sLine = pc.function.instrs[i];
+          if ('label' in sLine && sLine.label === action.label) {
+            break;
+          }
+        }
+        if (i === pc.function.instrs.length) {
+          throw `label ${action.label} not found`;
+        }
+        pc.index = i;
+
+        return pc;
+      }
+
+      case "end": {
+        pc.index = pc.function.instrs.length;
+
+        return pc;
+      }
+
+      case "next": {
+        pc.index++;
+
+        return pc;
+      }
+    }
+  }
+
+  isExtAction(action: { type: string }): action is util.Action {
+    // very loose dynamic type saftey
+    return util.actionTypes.some(type => type === action.type);
+  }
 }

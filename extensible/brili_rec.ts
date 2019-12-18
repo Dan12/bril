@@ -1,6 +1,7 @@
 import * as bril from './bril_rec';
 import * as brili_base from './brili_base';
 import * as util from './util';
+import { BaseInstruction, BaseFunction, BaseAction } from './util';
 
 type Value = brili_base.Value | Record;
 type RecordBindings = { [index: string]: Value };
@@ -126,5 +127,46 @@ export function evalInstr<A,P extends ProgramState,F extends FunctionState,I ext
     }
     
     return util.unreachable(instr);
+  }
+}
+
+import { InstrExtension } from './framework'
+
+export class BriliRec<A_comp extends BaseAction, P_comp extends ProgramState, FS_comp extends FunctionState, I_comp extends BaseInstruction, F_comp extends BaseFunction<I_comp>> extends InstrExtension<util.Action, ProgramState, FunctionState, bril.Instruction, BaseFunction<bril.Instruction>, A_comp, P_comp, FS_comp, I_comp, F_comp> {
+
+  isExtInstr(instr: {op:string}): instr is bril.Instruction {
+    // very loose dynamic type saftey
+    return instrOps.some(op => op === instr.op);
+  }
+
+  evalExtInstr(instr: bril.Instruction, programState: ProgramState, functionState: FunctionState): util.Action {
+    let typeEnv = functionState.typeEnv;
+    let env = functionState.env;
+    switch (instr.op) {
+      case "recorddef": {
+        typeEnv.set(instr.recordname, instr.fields);
+        return util.NEXT;
+      }
+    
+      case "recordinst": {
+        let val = createRecord(instr, env, typeEnv);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+    
+      case "recordwith": {
+        let src_record = brili_base.get(env, instr.src) as Record; 
+        let val = createRecord(instr, env, typeEnv, src_record);
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+
+      case "access": {
+        let record = brili_base.get(env, instr.args[0]);
+        let val = (record as Record).bindings[instr.args[1]];
+        env.set(instr.dest, val);
+        return util.NEXT;
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { BaseInstruction, BaseFunction } from './util';
+import { BaseInstruction, BaseFunction, BaseProgram } from './util';
 import { PC } from './brili_base'
 
 
@@ -47,7 +47,7 @@ export class Composer<A, P extends MinProgramState<FS>, FS, I extends BaseInstru
     }
   }
 
-  evalProg(prog: any) {
+  evalProg<Prog extends BaseProgram<I,F>>(prog: Prog) {
     let programState = this.initP();
     for (let func of prog.functions) {
       if (func.name === "main") {

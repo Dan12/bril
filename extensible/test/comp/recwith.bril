@@ -1,0 +1,24 @@
+func1 a:int {
+  type myType = {ident1 : int; ident2 : int};
+  b: int = const 2;
+  typeinst : myType = record {ident1: a; ident2: b};
+  d : int = id typeinst . ident1;
+  recordWith : myType = typeinst with {ident1: b; ident2: a};
+  e : int = id typeinst . ident1;
+  f : int = id recordWith . ident1;
+  g : int = id typeinst . ident2;
+  h : int = id recordWith . ident2;
+  print e;
+  print f;
+  print g;
+  print h;
+  ret;
+}
+
+main {
+  v3: int = const 10;
+  print v3;
+  v: int = const 1;
+  call func1 v;
+  ret;
+}

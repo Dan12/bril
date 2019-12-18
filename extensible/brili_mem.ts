@@ -2,6 +2,7 @@ import { Heap, Key } from './heap';
 import * as bril from './bril_mem';
 import * as brili_base from './brili_base';
 import * as util from './util';
+import { BaseInstruction, BaseFunction, BaseAction } from './util';
 
 type Pointer = {
   loc: Key;
@@ -111,5 +112,71 @@ export function evalInstr<A,P extends ProgramState,F extends FunctionState, I ex
     }
 
     return util.unreachable(instr);
+  }
+}
+
+import { InstrExtension } from './framework'
+
+export class BriliMem<A_comp extends BaseAction, P_comp extends ProgramState, FS_comp extends FunctionState, I_comp extends BaseInstruction, F_comp extends BaseFunction<I_comp>> extends InstrExtension<util.Action, ProgramState, FunctionState, bril.Instruction, BaseFunction<bril.Instruction>, A_comp, P_comp, FS_comp, I_comp, F_comp> {
+
+  isExtInstr(instr: {op:string}): instr is bril.Instruction {
+    // very loose dynamic type saftey
+    return instrOps.some(op => op === instr.op);
+  }
+
+  evalExtInstr(instr: bril.Instruction, programState: ProgramState, functionState: FunctionState): util.Action {
+    let heap = programState.heap;
+    let env = functionState.env;
+    switch (instr.op) {
+      case "alloc": {
+        let amt = brili_base.getInt(instr, env, 0)
+        let ptr = alloc(instr.type, Number(amt), heap)
+        env.set(instr.dest, ptr);
+        return util.NEXT;
+      }
+
+      case "free": {
+        let val = getPtr(instr, env, 0)
+        heap.free(val.loc);
+        return util.NEXT;
+      }
+
+      case "store": {
+        let target = getPtr(instr, env, 0)
+        switch (target.type) {
+          case "int": {
+            heap.write(target.loc, brili_base.getInt(instr, env, 1))
+            break;
+          }
+          case "bool": {
+            heap.write(target.loc, brili_base.getBool(instr, env, 1))
+            break;
+          }
+          case "ptr": {
+            heap.write(target.loc, getPtr(instr, env, 1))
+            break;
+          }
+        }
+        return util.NEXT;
+      }
+
+      case "load": {
+        let ptr = getPtr(instr, env, 0)
+        let val = heap.read(ptr.loc)
+        if (val == undefined || val == null) {
+          throw `Pointer ${instr.args[0]} points to uninitialized data`;
+        } else {
+          env.set(instr.dest, val)
+        }
+        return util.NEXT;
+      }
+
+      case "ptradd": {
+        let ptr = getPtr(instr, env, 0)
+        let val = brili_base.getInt(instr, env, 1)
+        env.set(instr.dest, { loc: ptr.loc.add(Number(val)), type: ptr.type })
+        return util.NEXT;
+      }
+    }
   }
 }
